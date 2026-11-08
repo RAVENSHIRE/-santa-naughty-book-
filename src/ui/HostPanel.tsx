@@ -4,6 +4,43 @@ import type { Locale } from '../i18n';
 import { useBook, useStrings } from '../store';
 import { IconClose, IconDown, IconEye, IconTrash, IconUp } from './icons';
 
+type Downloads = { save: (r: { filename: string; data: string }) => Promise<unknown> };
+
+/** Download-Schnittstelle, wenn die Seite als Claude-Artefakt läuft – sonst null */
+async function artifactDownloads(): Promise<Downloads | null> {
+  const host = (window as unknown as { claude?: { use?: (name: string) => Promise<unknown> } }).claude;
+  if (!host?.use) return null;
+  try {
+    return ((await host.use('downloads')) as Downloads | null) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** Zweistufige Bestätigung statt confirm() (funktioniert auch in eingebetteten Frames) */
+function ConfirmButton({ label, onConfirm, className }: { label: string; onConfirm: () => void; className: string }) {
+  const s = useStrings();
+  const [armed, setArmed] = useState(false);
+  useEffect(() => {
+    if (!armed) return;
+    const id = setTimeout(() => setArmed(false), 3500);
+    return () => clearTimeout(id);
+  }, [armed]);
+  return (
+    <button
+      className={`${className} ${armed ? 'is-armed' : ''}`}
+      onClick={() => {
+        if (armed) {
+          setArmed(false);
+          onConfirm();
+        } else setArmed(true);
+      }}
+    >
+      {armed ? s.tapAgain : label}
+    </button>
+  );
+}
+
 function GuestCard({ g, index, total }: { g: Guest; index: number; total: number }) {
   const s = useStrings();
   const { updateGuest, removeGuest, moveGuest, goToGuest, setHostOpen, singlePage } = useBook.getState();
@@ -97,14 +134,47 @@ export function HostPanel() {
     if (open) panelRef.current?.focus();
   }, [open]);
 
-  const exportJson = () => {
-    const data = { app: 'santa-naughty-book', version: 1, event, guests: guests.map(({ id: _id, revealed: _r, ...g }) => g) };
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'santa-naughty-book.json';
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  const [note, setNote] = useState('');
+  useEffect(() => {
+    if (!note) return;
+    const id = setTimeout(() => setNote(''), 3500);
+    return () => clearTimeout(id);
+  }, [note]);
+
+  const json = () =>
+    JSON.stringify({ app: 'santa-naughty-book', version: 1, event, guests: guests.map(({ id: _id, revealed: _r, ...g }) => g) }, null, 2);
+
+  const exportJson = async () => {
+    const data = json();
+    // Als Claude-Artefakt eingebettet: Download über die Plattform anbieten
+    const dl = await artifactDownloads();
+    if (dl) {
+      try {
+        await dl.save({ filename: 'santa-naughty-book.json', data });
+      } catch (e) {
+        if ((e as { code?: string })?.code !== 'declined') setNote(s.copyFailed);
+      }
+      return;
+    }
+    try {
+      const blob = new Blob([data], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'santa-naughty-book.json';
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    } catch {
+      setNote(s.copyFailed);
+    }
+  };
+
+  const copyJson = async () => {
+    try {
+      await navigator.clipboard.writeText(json());
+      setNote(s.copied);
+    } catch {
+      setNote(s.copyFailed);
+    }
   };
 
   const onImport = (file: File | undefined) => {
@@ -112,9 +182,9 @@ export function HostPanel() {
     const reader = new FileReader();
     reader.onload = () => {
       try {
-        if (!importData(JSON.parse(String(reader.result)))) alert(s.importFailed);
+        setNote(importData(JSON.parse(String(reader.result))) ? s.imported : s.importFailed);
       } catch {
-        alert(s.importFailed);
+        setNote(s.importFailed);
       }
     };
     reader.readAsText(file);
@@ -194,19 +264,23 @@ export function HostPanel() {
               <button className="btn btn-ghost" onClick={exportJson}>
                 {s.exportJson}
               </button>
+              <button className="btn btn-ghost" onClick={copyJson}>
+                {s.copyJson}
+              </button>
               <button className="btn btn-ghost" onClick={() => fileRef.current?.click()}>
                 {s.importJson}
               </button>
               <button className="btn btn-ghost" onClick={resetReveals}>
                 {s.resetReveals}
               </button>
-              <button className="btn btn-ghost" onClick={() => confirm(s.confirmDemo) && loadDemo()}>
-                {s.loadDemo}
-              </button>
-              <button className="btn btn-ghost btn-danger" onClick={() => confirm(s.confirmClear) && clearAll()}>
-                {s.clearAll}
-              </button>
+              <ConfirmButton className="btn btn-ghost" label={s.loadDemo} onConfirm={loadDemo} />
+              <ConfirmButton className="btn btn-ghost btn-danger" label={s.clearAll} onConfirm={clearAll} />
             </div>
+            {note && (
+              <p className="note" role="status">
+                {note}
+              </p>
+            )}
             <input
               ref={fileRef}
               type="file"

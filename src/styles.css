@@ -795,6 +795,18 @@ input[type='range'] {
   letter-spacing: 0;
 }
 
+.btn.is-armed {
+  background: rgba(210, 53, 59, 0.25);
+  border-color: rgba(255, 140, 120, 0.6);
+  color: #ffd2c8;
+}
+
+.note {
+  margin: 0;
+  font-size: 13px;
+  color: var(--gold-strong);
+}
+
 .muted {
   margin: 0;
   font-size: 13px;

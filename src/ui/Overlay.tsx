@@ -5,8 +5,8 @@ import { IconBook, IconExpand, IconLeft, IconMute, IconQuill, IconRight, IconSou
 
 function toggleFullscreen() {
   try {
-    if (document.fullscreenElement) void document.exitFullscreen();
-    else void document.documentElement.requestFullscreen?.();
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    else document.documentElement.requestFullscreen?.().catch(() => {});
   } catch {
     /* nicht unterstützt */
   }
