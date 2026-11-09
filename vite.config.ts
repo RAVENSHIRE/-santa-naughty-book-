@@ -51,8 +51,9 @@ function mediapipeAssets(): Plugin {
  */
 function elevenLabsVoice(env: Record<string, string>): Plugin {
   const key = env.ELEVENLABS_API_KEY || process.env.ELEVENLABS_API_KEY || '';
-  const defVoice = env.ELEVENLABS_VOICE_ID || process.env.ELEVENLABS_VOICE_ID || 'JBFqnCBsd6RMkjVDRZzb';
-  const defModel = env.ELEVENLABS_MODEL_ID || process.env.ELEVENLABS_MODEL_ID || 'eleven_multilingual_v2';
+  // Nur gesetzt, wenn ausdrücklich per Umgebungsvariable gewählt – sonst gilt die Stimme aus content.json / voice.ts
+  const defVoice = env.ELEVENLABS_VOICE_ID || process.env.ELEVENLABS_VOICE_ID || '';
+  const defModel = env.ELEVENLABS_MODEL_ID || process.env.ELEVENLABS_MODEL_ID || '';
   // z. B. für Datenresidenz (EU) anpassbar
   const apiBase = (env.ELEVENLABS_API_BASE || process.env.ELEVENLABS_API_BASE || 'https://api.elevenlabs.io').replace(/\/$/, '');
   const cacheDir = resolve('.voice-cache');
@@ -71,7 +72,7 @@ function elevenLabsVoice(env: Record<string, string>): Plugin {
   };
   const handler: Connect.NextHandleFunction = (req, res, next) => {
     const path = (req.url ?? '').split('?')[0];
-    if (path.endsWith('/api/voice/status')) return json(res, 200, { enabled: !!key, voiceId: defVoice, modelId: defModel });
+    if (path.endsWith('/api/voice/status')) return json(res, 200, { enabled: !!key, voiceId: defVoice || undefined, modelId: defModel || undefined });
     // Cache-Dateien im Dev-Server ausliefern (vor public/voice)
     const vm = path.match(/\/voice\/([a-f0-9]{40}\.mp3|manifest\.json)$/);
     if (vm && req.method === 'GET') {
@@ -94,8 +95,8 @@ function elevenLabsVoice(env: Record<string, string>): Plugin {
         const b = JSON.parse(body || '{}');
         const text = String(b.text ?? '').trim().slice(0, 1500);
         if (!text) return json(res, 400, { error: 'text fehlt' });
-        const voiceId = String(b.voiceId || defVoice).replace(/[^\w-]/g, '');
-        const modelId = String(b.modelId || defModel).replace(/[^\w.-]/g, '');
+        const voiceId = String(b.voiceId || defVoice || 'JBFqnCBsd6RMkjVDRZzb').replace(/[^\w-]/g, '');
+        const modelId = String(b.modelId || defModel || 'eleven_multilingual_v2').replace(/[^\w.-]/g, '');
         const num = (v: unknown, d: number) => (typeof v === 'number' && isFinite(v) ? v : d);
         const stability = num(b.stability, 0.45);
         const similarity = num(b.similarity, 0.8);
@@ -110,17 +111,26 @@ function elevenLabsVoice(env: Record<string, string>): Plugin {
           return res.end(readFileSync(file));
         }
         if (!key) return json(res, 503, { error: 'ELEVENLABS_API_KEY fehlt' });
-        const r = await fetch(`${apiBase}/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`, {
-          method: 'POST',
-          headers: { 'xi-api-key': key, 'Content-Type': 'application/json', Accept: 'audio/mpeg' },
-          body: JSON.stringify({
-            text,
-            model_id: modelId,
-            previous_text: prev || undefined,
-            next_text: nxt || undefined,
-            voice_settings: { stability, similarity_boost: similarity, style, use_speaker_boost: true, speed },
-          }),
-        });
+        const call = (full: boolean) =>
+          fetch(`${apiBase}/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`, {
+            method: 'POST',
+            headers: { 'xi-api-key': key, 'Content-Type': 'application/json', Accept: 'audio/mpeg' },
+            body: JSON.stringify({
+              text,
+              model_id: modelId,
+              previous_text: full && prev ? prev : undefined,
+              next_text: full && nxt ? nxt : undefined,
+              voice_settings: full
+                ? { stability, similarity_boost: similarity, style, use_speaker_boost: true, speed }
+                : { stability, similarity_boost: similarity },
+            }),
+          });
+        let r = await call(true);
+        // Nicht jedes Modell kennt alle Optionen (Kontext, Stil, Tempo) → mit minimalen Einstellungen nochmals versuchen
+        if (r.status === 400 || r.status === 422) {
+          console.warn(`[elevenlabs] ${r.status} ${(await r.text()).slice(0, 200)} – nochmals mit Grundeinstellungen`);
+          r = await call(false);
+        }
         if (!r.ok) {
           const msg = await r.text();
           console.warn(`[elevenlabs] ${r.status} ${msg.slice(0, 300)}`);

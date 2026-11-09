@@ -10,10 +10,10 @@ import { santaRuntime } from './santaRuntime';
  */
 
 export const DEFAULT_VOICE = {
-  // „George“ – warme, tiefe Männerstimme (Standardstimme von ElevenLabs). In content.json überschreibbar,
-  // z. B. mit einer Schweizerdeutsch-Stimme aus der ElevenLabs Voice Library.
-  voiceId: 'JBFqnCBsd6RMkjVDRZzb',
-  modelId: 'eleven_multilingual_v2',
+  // Santa-Stimme (aus der ElevenLabs Voice Library). In content.json (voice.voiceId) überschreibbar.
+  // Modelle: eleven_v3, eleven_v4, eleven_multilingual_v2 („eleven_multilingual_v3“ gibt es nicht)
+  voiceId: 'ogdlaxy0T9rCSVdH0VJM',
+  modelId: 'eleven_v3',
   stability: 0.45,
   similarity: 0.8,
   style: 0.35,
@@ -82,8 +82,9 @@ export async function voiceSettings() {
   const [m, st] = await Promise.all([manifest(), status()]);
   return {
     // content.json → Server-Einstellung (Codespace) → vorgerenderte Dateien (GitHub Pages) → Standard
-    voiceId: v.voiceId || (st.server ? st.voiceId : '') || m?.voiceId || DEFAULT_VOICE.voiceId,
-    modelId: v.modelId || (st.server ? st.modelId : '') || m?.modelId || DEFAULT_VOICE.modelId,
+    // Mit Server (Codespace): Umgebungsvariable vor voice.ts; ohne Server: Stimme der vorgerenderten Dateien
+    voiceId: v.voiceId || (st.server ? st.voiceId || DEFAULT_VOICE.voiceId : m?.voiceId || DEFAULT_VOICE.voiceId),
+    modelId: v.modelId || (st.server ? st.modelId || DEFAULT_VOICE.modelId : m?.modelId || DEFAULT_VOICE.modelId),
     stability: v.stability ?? DEFAULT_VOICE.stability,
     similarity: v.similarity ?? DEFAULT_VOICE.similarity,
     style: v.style ?? DEFAULT_VOICE.style,
