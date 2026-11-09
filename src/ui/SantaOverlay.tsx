@@ -4,6 +4,7 @@ import { santaRuntime } from '../santa/santaRuntime';
 import { useSanta } from '../santa/santaStore';
 import { vision } from '../santa/vision';
 import { useBook, useStrings } from '../store';
+import { useContent } from '../content';
 import { IconClose, IconEye, IconQuill, IconRight } from './icons';
 
 const RUNNING = new Set(['starting', 'greeting', 'waiting', 'asking-name', 'reading', 'verdict', 'next', 'farewell']);
@@ -91,6 +92,42 @@ function NamePanel() {
   );
 }
 
+/** Filmische Titelkarte (Vorspann, Kapitel, Abspann) */
+function TitleCard() {
+  const card = useSanta((st) => st.titleCard);
+  const [shown, setShown] = useState(card);
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    if (card) {
+      setShown(card);
+      const id = requestAnimationFrame(() => setVisible(true));
+      return () => cancelAnimationFrame(id);
+    }
+    setVisible(false);
+    const id = setTimeout(() => setShown(null), 900);
+    return () => clearTimeout(id);
+  }, [card]);
+  if (!shown) return null;
+  return (
+    <div className={`title-card ${visible ? 'is-visible' : ''}`} aria-live="polite">
+      {shown.kicker && <div className="title-kicker">{shown.kicker}</div>}
+      <div className="title-main">{shown.title}</div>
+      <div className="title-rule" aria-hidden />
+      {shown.sub && <div className="title-sub">{shown.sub}</div>}
+    </div>
+  );
+}
+
+export function Letterbox() {
+  const on = useSanta((st) => st.letterbox && st.mode === 'santa');
+  return (
+    <div className={`letterbox ${on ? 'is-on' : ''}`} aria-hidden>
+      <span className="lb-top" />
+      <span className="lb-bottom" />
+    </div>
+  );
+}
+
 export function SantaOverlay() {
   const s = useStrings();
   const phase = useSanta((st) => st.phase);
@@ -107,6 +144,11 @@ export function SantaOverlay() {
   const doneIds = useSanta((st) => st.doneIds);
   const ready = useBook((st) => st.ready);
   const guests = useBook((st) => st.guests);
+  const voice = useSanta((st) => st.voice);
+  const titleCard = useSanta((st) => st.titleCard);
+  const letterbox = useSanta((st) => st.letterbox);
+  const brand = useContent((st) => st.brand);
+  const storyCfg = useContent((st) => st.story);
   const [useCam, setUseCam] = useState(true);
   const [useMic, setUseMic] = useState(true);
   const [listening, setListening] = useState(false);
@@ -152,9 +194,12 @@ export function SantaOverlay() {
       {!running && (
         <section className="santa-start">
           <div className="santa-card">
-            <h2>
-              <span className="brand-script">Santa</span> AI
-            </h2>
+            {brand.name && <div className="santa-kicker">{brand.name}</div>}
+            <h2>{storyCfg.title || (
+              <>
+                <span className="brand-script">Santa</span> AI
+              </>
+            )}</h2>
             {phase === 'finished' && guests.length > 0 && doneIds.length >= guests.length && <p className="santa-finished">{s.finished}</p>}
             <p>{s.santaIntro}</p>
             <p className="muted">{s.guestsOnList(guests.length)}</p>
@@ -182,9 +227,11 @@ export function SantaOverlay() {
         </section>
       )}
 
+      {running && <TitleCard />}
+
       {running && (
         <>
-          <div className="santa-status">
+          <div className={`santa-status ${titleCard ? 'is-hidden' : ''}`}>
             <span className={`status-chip ${camera === 'on' && present ? 'is-good' : camera === 'denied' ? 'is-bad' : ''}`}>
               <IconEye /> {camLabel}
             </span>
@@ -201,12 +248,19 @@ export function SantaOverlay() {
             </span>
             {guests.length > 0 && <span className="status-chip">{s.progress(doneIds.length, guests.length)}</span>}
             {mic === 'on' && !speechIn && <span className="status-chip is-warn">{s.noSpeechIn}</span>}
-            {!speechOut && <span className="status-chip is-warn">{s.noSpeechOut}</span>}
+            {voice === 'elevenlabs' ? (
+              <span className="status-chip is-good">{s.voiceEleven}</span>
+            ) : voice === 'browser' ? (
+              <span className="status-chip">{s.voiceBrowser}</span>
+            ) : voice === 'checking' ? (
+              <span className="status-chip">{s.voiceChecking}</span>
+            ) : null}
+            {!speechOut && voice !== 'elevenlabs' && <span className="status-chip is-warn">{s.noSpeechOut}</span>}
           </div>
 
           <CameraPreview />
 
-          <div className="santa-bottom">
+          <div className={`santa-bottom ${letterbox ? 'is-cinema' : ''} ${titleCard ? 'is-title' : ''}`}>
             {heard && (
               <div className="heard">
                 <span>{s.heardLabel}:</span> «{heard}»

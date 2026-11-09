@@ -213,6 +213,8 @@ export const useBook = create<BookState>()(
               verdict: verdicts.includes(g.verdict as Verdict) ? (g.verdict as Verdict) : 'undecided',
               score: clamp(Number(g.score ?? 50) || 0, 0, 100),
               revealed: false,
+              story: typeof g.story === 'string' && g.story.trim() ? g.story.slice(0, 8000) : undefined,
+              title: typeof g.title === 'string' && g.title.trim() ? g.title.slice(0, 120) : undefined,
             }));
           const cur = get().event;
           set({

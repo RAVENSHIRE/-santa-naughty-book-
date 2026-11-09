@@ -1,0 +1,59 @@
+{
+  "$schema": "./content.schema.json",
+  "version": 2,
+  "language": "gsw",
+  "uiLanguage": "de",
+  "brand": {
+    "preset": "ubs",
+    "name": "UBS",
+    "logo": "brand/logo.svg",
+    "presents": "UBS präsentiert"
+  },
+  "voice": {
+    "provider": "elevenlabs",
+    "voiceId": "HIER-DIE-VOICE-ID-AUS-ELEVENLABS",
+    "modelId": "eleven_multilingual_v2",
+    "stability": 0.45,
+    "similarity": 0.8,
+    "style": 0.35,
+    "speed": 0.92
+  },
+  "story": {
+    "title": "S Buech vom Samichlaus",
+    "subtitle": "E Wiehnachtsgschicht",
+    "prologue": "Es isch e chalti, klari Nacht gsi. Wiit obe über em Paradeplatz isch en Schlitte dur d Nacht gfloge – und drin bin ich gsässe, mit mim grosse, alte Buech.",
+    "greeting": "Ho ho ho! Grüezi mitenand! Ich bi de Samichlaus, und hüt Abig lies ich jedem vo eu sini Gschicht vor.",
+    "epilogue": "Und so isch de Samichlaus wieder hei i d Bärge. S Buech isch zue – bis nächscht Jahr.",
+    "farewell": "Danke vielmal für dä schöni Abig. Blibed brav – ich gseh alles! Schöni Wiehnachte! Ho ho ho!",
+    "chapterLabel": "Kapitel",
+    "endTitle": "Schöni Wiehnachte",
+    "music": true
+  },
+  "event": {
+    "name": "Wiehnachtsfiir",
+    "date": "Dezämber 2026 · Züri",
+    "santa": "Samichlaus"
+  },
+  "guests": [
+    {
+      "name": "Anna",
+      "verdict": "nice",
+      "score": 20,
+      "nice": ["Hät fürs ganze Team Guetzli bachet", "Rettet jede Drucker-Notfall"],
+      "naughty": ["Hät s letschte Gipfeli gässe – zweimal"]
+    },
+    {
+      "name": "Luca",
+      "verdict": "naughty",
+      "score": 80,
+      "nice": ["Bringt jede Mäntig gueti Luune mit"],
+      "naughty": ["Drückt sibe Mal uf «Schlummere»", "Singt lut im Grossruumbüro"]
+    },
+    {
+      "name": "Mia",
+      "verdict": "nice",
+      "score": 15,
+      "story": "Mia, mini Wichtel händ mir verzellt, dass du das Jahr s Wichtle organisiert häsch – und dass du jedes Geburtstagsdatum uswändig weisch. Nur eis het mi verwunderet: Wieso staht i dim Kalender bim 24. Dezämber «Rentier fuetere»?"
+    }
+  ]
+}

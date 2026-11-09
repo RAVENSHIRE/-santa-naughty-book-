@@ -1,6 +1,9 @@
 import { fastTalk } from '../config';
-import type { Locale } from '../i18n';
+import type { SantaLanguage } from '../content';
 import { santaRuntime } from './santaRuntime';
+import { playVoice, stopVoice, unlockVoice } from './voice';
+
+type Locale = SantaLanguage;
 
 /**
  * Sprachausgabe (speechSynthesis) und Spracherkennung (SpeechRecognition) des Browsers.
@@ -9,6 +12,7 @@ import { santaRuntime } from './santaRuntime';
 
 export function speechLang(locale: Locale) {
   const nav = typeof navigator !== 'undefined' ? navigator.language : '';
+  if (locale === 'gsw') return 'de-CH';
   if (locale === 'de') return nav?.toLowerCase().startsWith('de') ? nav : 'de-DE';
   return nav?.toLowerCase().startsWith('en') ? nav : 'en-US';
 }
@@ -33,10 +37,10 @@ function loadVoices(): Promise<SpeechSynthesisVoice[]> {
 
 function pickVoice(voices: SpeechSynthesisVoice[], locale: Locale): SpeechSynthesisVoice | null {
   const lang = speechLang(locale).toLowerCase();
-  const base = locale;
+  const base = locale === 'gsw' ? 'de' : locale;
   const cands = voices.filter((v) => v.lang?.toLowerCase().startsWith(base));
   if (!cands.length) return null;
-  const male = locale === 'de' ? MALE_DE : MALE_EN;
+  const male = locale === 'en' ? MALE_EN : MALE_DE;
   const score = (v: SpeechSynthesisVoice) =>
     (male.test(v.name) ? 4 : 0) +
     (/natural|neural|premium|enhanced/i.test(v.name) ? 3 : 0) +
@@ -50,8 +54,22 @@ export const ttsSupported = () => typeof window !== 'undefined' && 'speechSynthe
 let cancelToken = 0;
 
 /** Spricht einen Text (satzweise). Löst auf, wenn fertig – oder nach einer Sicherheits-Zeit. */
-export async function speak(text: string, locale: Locale, onWord?: (charIndex: number) => void): Promise<void> {
+export async function speak(
+  text: string,
+  locale: Locale,
+  ctx: { prev?: string; next?: string } = {},
+  onWord?: (charIndex: number) => void,
+): Promise<void> {
   const token = ++cancelToken;
+  // 1) ElevenLabs (vorgerendert oder über den Server-Proxy)
+  if (!fastTalk) {
+    santaRuntime.speaking = true;
+    const ok = await playVoice(text, ctx.prev ?? '', ctx.next ?? '', () => token !== cancelToken);
+    if (ok) {
+      if (token === cancelToken) santaRuntime.speaking = false;
+      return;
+    }
+  }
   const chunks = text.match(/[^.!?…]+[.!?…]*["»“”]?\s*/g)?.map((c) => c.trim()).filter(Boolean) ?? [text];
   santaRuntime.speaking = true;
   try {
@@ -78,7 +96,7 @@ export async function speak(text: string, locale: Locale, onWord?: (charIndex: n
         u.lang = voice?.lang ?? speechLang(locale);
         if (voice) u.voice = voice;
         u.rate = 0.93;
-        u.pitch = voice && (locale === 'de' ? MALE_DE : MALE_EN).test(voice.name) ? 0.85 : 0.7;
+        u.pitch = voice && (locale === 'en' ? MALE_EN : MALE_DE).test(voice.name) ? 0.85 : 0.7;
         u.onboundary = (e) => {
           santaRuntime.lastBoundary = performance.now();
           onWord?.(start + e.charIndex);
@@ -100,6 +118,7 @@ export async function speak(text: string, locale: Locale, onWord?: (charIndex: n
 export function stopSpeaking() {
   cancelToken++;
   santaRuntime.speaking = false;
+  stopVoice();
   try {
     if (ttsSupported()) speechSynthesis.cancel();
   } catch {
@@ -217,6 +236,7 @@ export function stopListening() {
 
 /** Sprachausgabe einmal „anwerfen“ – muss in einem Klick passieren (iOS/Chrome) */
 export function primeSpeech() {
+  unlockVoice();
   try {
     if (!ttsSupported()) return;
     void loadVoices();

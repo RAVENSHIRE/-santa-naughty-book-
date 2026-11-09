@@ -1,18 +1,21 @@
-import { sfx } from '../audio';
+import { music, sfx } from '../audio';
+import { useContent } from '../content';
 import type { Guest } from '../demoData';
+import { resolveBrand } from '../brand';
 import { useBook } from '../store';
-import { matchGuest, extractName } from './names';
-import { gesture, santaRuntime } from './santaRuntime';
+import { extractName, matchGuest } from './names';
+import { gesture, santaRuntime, setShot } from './santaRuntime';
 import { useSanta } from './santaStore';
 import { listen, primeSpeech, speak, stopListening, stopSpeaking, sttSupported, ttsSupported } from './speech';
 import { buildStory, pick, santaLines, sentences } from './stories';
+import { fetchVoice, voiceAvailable } from './voice';
 import { vision } from './vision';
 
 /**
- * Der Gesprächsablauf von „Santa AI“:
- * Begrüssung → Person erkennen → Namen erfragen → Geschichte aus dem Buch vorlesen → Urteil
- * → „Wer ist als Nächstes?“ … bis alle dran waren → Abschied.
- * Der Gastgeber kann jederzeit eingreifen (Name eintippen, Person melden, überspringen, beenden).
+ * Santa AI als kleiner Film:
+ * Titelkarte → Prolog (Kamerafahrt, Spieldose) → Begrüssung → pro Gast ein Kapitel
+ * (Person erkennen → Name → Geschichte → Schnitt aufs Buch: Stempel → Reaktion) → Epilog → Abspann.
+ * Der Gastgeber kann jederzeit eingreifen (Name, Person da, Weiter, Abschied, Stopp).
  */
 
 class Aborted extends Error {}
@@ -32,8 +35,20 @@ class Director {
   private get patch() {
     return useSanta.getState().patch;
   }
-  private get locale() {
-    return useBook.getState().locale;
+  /** Sprache, in der Santa spricht (gsw / de / en) */
+  private get lang() {
+    return useContent.getState().language;
+  }
+  private get lines() {
+    const L = santaLines(this.lang);
+    const o = useContent.getState().story;
+    return {
+      ...L,
+      prologue: () => o.prologue || L.prologue(),
+      greeting: (event: string, count: number) => o.greeting || L.greeting(event, count),
+      epilogue: () => o.epilogue || L.epilogue(),
+      farewell: (event: string) => o.farewell || L.farewell(event),
+    };
   }
 
   private emit(e: Ev) {
@@ -61,17 +76,34 @@ class Director {
     });
   }
 
-  /** Santa spricht (satzweise mit Untertiteln) */
+  /** Santa spricht – satzweise mit Untertiteln; der nächste Satz wird schon vorgeladen */
   private async say(g: number, text: string) {
     this.check(g);
     this.skipSay = false;
-    for (const s of sentences(text)) {
-      if (this.skipSay || this.endRequested) break;
-      this.check(g);
-      this.patch({ caption: s });
-      await speak(s, this.locale);
-      this.check(g);
+    const parts = sentences(text);
+    music.duck(true);
+    try {
+      for (let i = 0; i < parts.length; i++) {
+        if (this.skipSay || this.endRequested) break;
+        this.check(g);
+        const prev = parts[i - 1] ?? '';
+        const next = parts[i + 1] ?? '';
+        if (next) void fetchVoice(next, parts[i], parts[i + 2] ?? '');
+        this.patch({ caption: parts[i] });
+        await speak(parts[i], this.lang, { prev, next });
+        this.check(g);
+      }
+    } finally {
+      music.duck(false);
     }
+    this.check(g);
+  }
+
+  private async title(g: number, card: { kicker?: string; title: string; sub?: string }, ms: number) {
+    this.patch({ titleCard: card, caption: '' });
+    await this.wait(g, ['skip'], ms);
+    this.patch({ titleCard: null });
+    await sleep(500);
     this.check(g);
   }
 
@@ -82,11 +114,30 @@ class Director {
     this.endRequested = false;
     sfx.unlock();
     primeSpeech();
-    this.patch({ phase: 'starting', caption: '', heard: '', doneIds: [], currentGuestId: null, error: null, awaitingName: false, awaitingPerson: false });
+    this.patch({
+      phase: 'starting',
+      caption: '',
+      heard: '',
+      doneIds: [],
+      currentGuestId: null,
+      error: null,
+      awaitingName: false,
+      awaitingPerson: false,
+      letterbox: true,
+      titleCard: null,
+      voice: 'checking',
+    });
     useBook.getState().setPage(0);
+    setShot('wide', true);
+    if (useContent.getState().story.music !== false) music.start();
     await vision().start(opts);
     const s = useSanta.getState();
-    this.patch({ speechIn: sttSupported() && s.mic === 'on', speechOut: ttsSupported() });
+    const eleven = await voiceAvailable();
+    this.patch({
+      speechIn: sttSupported() && s.mic === 'on',
+      speechOut: eleven || ttsSupported(),
+      voice: eleven ? 'elevenlabs' : ttsSupported() ? 'browser' : 'none',
+    });
     this.unsubPresence?.();
     this.unsubPresence = vision().onPresence((p) => {
       if (p) this.emit({ kind: 'presence' });
@@ -106,12 +157,23 @@ class Director {
     this.emit({ kind: 'end' });
     stopSpeaking();
     stopListening();
+    music.stop();
     this.unsubPresence?.();
     this.unsubPresence = null;
     vision().stop();
     santaRuntime.pose = 'idle';
     santaRuntime.brows = 0;
-    this.patch({ phase: 'idle', caption: '', heard: '', awaitingName: false, awaitingPerson: false, currentGuestId: null });
+    setShot('medium');
+    this.patch({
+      phase: 'idle',
+      caption: '',
+      heard: '',
+      awaitingName: false,
+      awaitingPerson: false,
+      currentGuestId: null,
+      letterbox: false,
+      titleCard: null,
+    });
   }
 
   provideName(name: string) {
@@ -143,18 +205,43 @@ class Director {
 
   private remaining(): Guest[] {
     const done = new Set(useSanta.getState().doneIds);
-    return useBook.getState().guests.filter((g) => !done.has(g.id));
+    return useBook.getState().guests.filter((x) => !done.has(x.id));
   }
 
   private async run(g: number) {
-    const L = santaLines(this.locale);
+    const L = this.lines;
     const book = useBook.getState();
+    const story = useContent.getState().story;
+    const brand = resolveBrand(useContent.getState().brand);
     const cam = () => useSanta.getState().detector === 'on';
 
+    // Titelkarte
     this.patch({ phase: 'greeting' });
+    santaRuntime.pose = 'read';
+    await this.title(
+      g,
+      {
+        kicker: brand.presents ?? (brand.name ? L.presents(brand.name) : undefined),
+        title: story.title || "Santa's Naughty Book",
+        sub: story.subtitle || book.event.name,
+      },
+      5200,
+    );
+
+    // Prolog: langsame Fahrt von der Totalen zu Santa, der in seiner Liste liest
+    setShot('medium');
+    await this.say(g, L.prologue());
+    if (this.endRequested) return this.finale(g);
+
+    // Santa blickt auf – Begrüssung in Nahaufnahme
     santaRuntime.pose = 'wave';
+    gesture('laugh');
+    setShot('close', true);
+    music.stop();
     await this.say(g, L.greeting(book.event.name, book.guests.length));
     santaRuntime.pose = 'idle';
+    setShot('medium');
+    this.patch({ letterbox: false });
 
     let first = true;
     let quiet = 0;
@@ -169,7 +256,6 @@ class Director {
       first = false;
       if (this.endRequested) break;
 
-      // auf die nächste Person warten (Kamera, Name vom Gastgeber oder Sprache)
       const arrival = await this.awaitArrival(g);
       if (arrival.kind === 'end') break;
       if (arrival.kind === 'timeout') {
@@ -183,34 +269,49 @@ class Director {
       let name: string | null = arrival.kind === 'name' ? arrival.name : null;
       if (!name) {
         gesture('surprise');
+        setShot('close');
         await this.say(g, pick(L.seePerson));
         name = await this.askName(g);
       }
       if (this.endRequested) break;
-      await this.handlePerson(g, name ?? L.dearGuest);
+      await this.chapter(g, name ?? L.dearGuest);
     }
+    await this.finale(g);
+  }
 
-    // Abschied
-    this.patch({ phase: 'farewell', currentGuestId: null, awaitingName: false, awaitingPerson: false });
+  /** Epilog und Abspann */
+  private async finale(g: number) {
+    const L = this.lines;
+    const allDone = this.remaining().length === 0;
+    // Eigenes Schlusswort (Manuskript) auch bei vorzeitigem „Abschied“ halten, sofern schon jemand dran war
+    const full = allDone || (!!useContent.getState().story.epilogue && useSanta.getState().doneIds.length > 0);
+    this.endRequested = false;
+    this.patch({ phase: 'farewell', currentGuestId: null, awaitingName: false, awaitingPerson: false, letterbox: true });
+    useBook.getState().setPage(0);
+    if (useContent.getState().story.music !== false) music.start();
+    santaRuntime.pose = 'read';
+    setShot('medium');
+    if (full) await this.say(g, L.epilogue());
     santaRuntime.pose = 'wave';
     gesture('laugh');
-    const done = this.remaining().length === 0;
-    const Lf = santaLines(this.locale);
-    this.endRequested = false;
-    await this.say(g, done ? Lf.farewell(useBook.getState().event.name) : Lf.farewellEarly);
+    setShot('close');
+    await this.say(g, full ? L.farewell(useBook.getState().event.name) : L.farewellEarly);
     santaRuntime.pose = 'idle';
-    // Kamera und Mikrofon wieder freigeben
+    setShot('wide');
+    const brand = resolveBrand(useContent.getState().brand);
+    const story = useContent.getState().story;
+    await this.title(g, { title: story.endTitle || L.endTitle, sub: [brand.name, useBook.getState().event.name].filter(Boolean).join(' · ') }, 7000);
+    music.stop();
     this.unsubPresence?.();
     this.unsubPresence = null;
     vision().stop();
-    this.patch({ phase: 'finished', caption: '', heard: '' });
-    useBook.getState().setPage(0);
+    setShot('medium');
+    this.patch({ phase: 'finished', caption: '', heard: '', letterbox: false });
   }
 
   private async awaitArrival(g: number): Promise<Ev> {
     this.patch({ awaitingPerson: true });
     try {
-      // kurze Pause, damit die vorige Person Platz machen kann
       if (vision().present) {
         const e = await this.wait(g, ['name', 'skip'], 2600);
         if (e.kind !== 'timeout') return e.kind === 'skip' ? { kind: 'presence' } : e;
@@ -220,7 +321,6 @@ class Director {
         const e = await this.wait(g, ['presence', 'name'], 32000);
         return e.kind === 'skip' ? { kind: 'presence' } : e;
       }
-      // ohne Kamera: direkt nach dem Namen horchen
       if (useSanta.getState().speechIn) {
         const r = await this.listenOrName(g, 9000);
         if (r.kind === 'name') return r;
@@ -238,12 +338,14 @@ class Director {
     }
   }
 
-  /** Hört zu – oder nimmt den Namen, den der Gastgeber eintippt */
-  private async listenOrName(g: number, ms: number): Promise<{ kind: 'name'; name: string } | { kind: 'end' } | { kind: 'heard'; text: string | null; error?: string }> {
+  private async listenOrName(
+    g: number,
+    ms: number,
+  ): Promise<{ kind: 'name'; name: string } | { kind: 'end' } | { kind: 'heard'; text: string | null; error?: string }> {
     this.check(g);
     const manual = this.wait(g, ['name'], ms + 2000);
     manual.catch(() => {});
-    const heard = listen(this.locale, ms, (t) => this.patch({ heard: t })).then((r) => ({ kind: 'heard' as const, ...r }));
+    const heard = listen(this.lang, ms, (t) => this.patch({ heard: t })).then((r) => ({ kind: 'heard' as const, ...r }));
     const r = await Promise.race([manual, heard]);
     stopListening();
     this.check(g);
@@ -260,7 +362,7 @@ class Director {
   }
 
   private async askName(g: number): Promise<string | null> {
-    const L = santaLines(this.locale);
+    const L = this.lines;
     this.patch({ phase: 'asking-name', awaitingName: true });
     santaRuntime.brows = 1;
     try {
@@ -288,12 +390,12 @@ class Director {
     }
   }
 
-  private async handlePerson(g: number, rawName: string) {
-    const L = santaLines(this.locale);
+  /** Ein Kapitel pro Gast */
+  private async chapter(g: number, rawName: string) {
+    const L = this.lines;
     let guests = useBook.getState().guests;
     let guest = matchGuest(rawName, guests);
-    const doneIds = new Set(useSanta.getState().doneIds);
-    if (guest && doneIds.has(guest.id)) {
+    if (guest && useSanta.getState().doneIds.includes(guest.id)) {
       gesture('shake');
       await this.say(g, L.alreadyDone(guest.name));
       return;
@@ -303,38 +405,78 @@ class Director {
       await this.say(g, L.unknown(rawName));
       useBook.getState().addGuest(rawName);
       guests = useBook.getState().guests;
-      guest = guests[guests.length - 1];
-      useBook.getState().updateGuest(guest.id, { verdict: 'nice', score: 20 });
-      guest = useBook.getState().guests.find((x) => x.id === guest!.id) ?? guest;
+      const added = guests[guests.length - 1];
+      useBook.getState().updateGuest(added.id, { verdict: 'nice', score: 20 });
+      guest = useBook.getState().guests.find((x) => x.id === added.id) ?? added;
     }
-    const gi = useBook.getState().guests.findIndex((x) => x.id === guest!.id);
-    this.patch({ phase: 'reading', currentGuestId: guest.id });
+    const gid = guest.id;
+    const gi = useBook.getState().guests.findIndex((x) => x.id === gid);
+    const num = useSanta.getState().doneIds.length + 1;
 
-    // Buch auf der richtigen Seite aufschlagen
-    useBook.getState().updateGuest(guest.id, { revealed: false });
+    // Kapitel-Titel
+    this.patch({ phase: 'reading', currentGuestId: gid, letterbox: true });
+    useBook.getState().updateGuest(gid, { revealed: false });
     useBook.getState().setPage(gi + 2, 'right');
-    santaRuntime.pose = 'read';
-    await this.say(g, L.lookup());
-    await this.say(g, buildStory(guest, this.locale));
+    const story = useContent.getState().story;
+    await this.title(g, { kicker: `${story.chapterLabel || L.chapter} ${num}`, title: guest.name, sub: guest.title }, guest.title ? 3400 : 2600);
 
-    // Urteil: Stempel im Buch, Santa reagiert
+    // Geschichte: Santa liest, Kamera fährt langsam heran
+    santaRuntime.pose = 'read';
+    setShot('medium');
+    await this.say(g, L.lookup(guest.name));
+    await this.say(g, buildStory(guest, this.lang));
+
+    // Urteil: Nahaufnahme → Schnitt aufs Buch (Stempel) → Schnitt zurück zur Reaktion
     this.patch({ phase: 'verdict' });
     santaRuntime.pose = 'present';
+    setShot('close');
     await this.say(g, L.verdictIntro(guest.name));
-    if (this.endRequested) return;
-    useBook.getState().startReveal();
-    const t0 = performance.now();
-    while (performance.now() - t0 < 4500) {
-      const ph = useBook.getState().reveal.phase;
-      if (ph === 'done' || ph === 'idle') break;
-      await sleep(80);
+    if (!this.endRequested) {
+      setShot('book', true);
+      await sleep(350);
+      useBook.getState().startReveal();
+      const t0 = performance.now();
+      while (performance.now() - t0 < 5000) {
+        const ph = useBook.getState().reveal.phase;
+        if (ph === 'done' || ph === 'idle') break;
+        await sleep(80);
+        this.check(g);
+      }
+      await sleep(1100);
       this.check(g);
     }
-    const v = useBook.getState().guests.find((x) => x.id === guest!.id)?.verdict ?? 'nice';
+    const v = useBook.getState().guests.find((x) => x.id === gid)?.verdict ?? 'nice';
+    setShot('close', true);
     gesture(v === 'nice' ? 'laugh' : v === 'naughty' ? 'shake' : 'nod');
     await this.say(g, L.verdict(v));
-    this.patch({ doneIds: [...useSanta.getState().doneIds, guest.id] });
+    this.patch({ doneIds: [...useSanta.getState().doneIds, gid], letterbox: false });
     santaRuntime.pose = 'idle';
+    setShot('medium');
+  }
+
+  /** Alle vorhersehbaren Sätze (für „Stimme vorbereiten“) – gruppiert wie sie gesprochen werden */
+  scriptTexts(): string[][] {
+    const L = this.lines;
+    const book = useBook.getState();
+    const ev = book.event.name;
+    const out: string[][] = [];
+    const add = (t: string) => out.push(sentences(t));
+    add(L.prologue());
+    add(L.greeting(ev, book.guests.length));
+    add(L.firstCall(true));
+    add(L.firstCall(false));
+    [...L.seePerson, ...L.askName, L.notUnderstood, L.hostHelp, L.anyoneThere].forEach(add);
+    add(L.epilogue());
+    add(L.farewell(ev));
+    add(L.farewellEarly);
+    for (const x of book.guests) {
+      add(L.hello(x.name));
+      add(L.lookup(x.name));
+      add(L.verdictIntro(x.name));
+      add(L.verdict(x.verdict));
+      add(buildStory(x, this.lang));
+    }
+    return out;
   }
 }
 

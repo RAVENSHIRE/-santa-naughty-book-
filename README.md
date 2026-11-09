@@ -33,6 +33,45 @@ Der Gastgeber kann jederzeit eingreifen: Namen antippen oder eintippen (praktisc
 - Die Spracherkennung von Chrome schickt das Gesagte an den Sprachdienst des Browsers. Kamerabilder verlassen den Browser nicht und werden nicht gespeichert.
 - Ohne Kamera oder Mikrofon läuft alles weiter: „Person ist da“ antippen und Namen eintippen.
 
+## Stimme (ElevenLabs), Schwiizerdütsch und Branding
+
+### Inhalt: `public/content.json`
+
+Alles für den Abend steht in **einer Datei**: Sprache, Branding, Stimme, Storyline und Gästeliste (Schema: `public/content.schema.json`, VS Code prüft die Datei automatisch).
+
+| Datei | Inhalt |
+| --- | --- |
+| `public/content.local.json` | **euer Manuskript** – wird automatisch geladen, ist in `.gitignore` (privat, landet nie im Repo) |
+| `public/content.local.de.json` | z. B. dieselbe Fassung auf Hochdeutsch → mit `?content=content.local.de.json` laden |
+| `public/content.json` | Standard ohne Gäste (Branding, Sprache, Titel) |
+| `public/content.example.json` | kurzes Beispiel mit allen Feldern |
+
+> Das Repository ist öffentlich: Gästelisten und Geschichten deshalb nur in `content.local*.json` ablegen. Auch `public/voice/` (die vorgerenderte Stimme) ist ignoriert, weil sie das gesprochene Manuskript enthält.
+
+Pro Gast: `name`, `title` (Kapitel-Untertitel), `verdict` (`nice`/`naughty`/`undecided`), `score`, `nice`/`naughty` (Einträge im Buch) und `story` – die Geschichte, die Santa **wörtlich** vorliest.
+Eröffnung, Prolog und Schlusswort stehen unter `story` (`greeting`, `prologue`, `epilogue`, `farewell`). Änderungen an der Datei werden beim nächsten Laden übernommen; Änderungen im Gastgeber-Bereich bleiben sonst erhalten.
+
+### Filmischer Ablauf
+
+Titelkarte („UBS präsentiert – S goldige Buech vom Samichlaus“) mit Spieldose („Stille Nacht“) → Prolog → Eröffnung → pro Gast ein **Kapitel** (Titelkarte mit Name und Untertitel, Geschichte, Schnitt aufs Buch: Stempel, Urteil) → Schlusswort → Abspann „Schöni Wiehnachte“. Kinobalken, Kamerafahrten und harte Schnitte (Totale, Halbnah, Nah, Buch). Hält der Gastgeber mit „Abschied“ früher an, kommt trotzdem das Schlusswort, sobald mindestens ein Gast dran war.
+
+### ElevenLabs-Stimme einrichten
+
+Der API-Key bleibt **auf dem Server** (Vite-Dev-/Preview-Server) und gelangt nie in den Browser.
+
+1. **Codespace:** GitHub → *Settings → Codespaces → Secrets* → `ELEVENLABS_API_KEY` anlegen und für dieses Repository freigeben (optional `ELEVENLABS_VOICE_ID`). Codespace neu starten.
+   **Lokal:** Datei `.env.local` mit `ELEVENLABS_API_KEY=…` (ist in `.gitignore`).
+2. `npm run dev` → Gastgeber-Bereich (H) → **Stimme & Story** → „**Stimme vorbereiten**“. Alle Sätze werden einmal erzeugt und in `.voice-cache/` gespeichert (≈ 21 000 Zeichen für das ganze Manuskript).
+3. Optional `npm run voice:export` → kopiert die Aufnahmen nach `public/voice/` (z. B. für einen Offline-Build mit `npm run build && npm run preview`). Nur in einem **privaten** Repository committen.
+
+Ohne Key spricht automatisch die Browser-Stimme. Stimme wählen: `voice.voiceId` in `content.json` (oder `ELEVENLABS_VOICE_ID`). Für Datenresidenz: `ELEVENLABS_API_BASE`.
+
+**Schwiizerdütsch:** ElevenLabs liest Mundart-Text mit einer deutschen Aussprache. Vor dem vollständigen Rendern ein paar Sätze in beiden Fassungen anhören (`content.local.json` vs. `?content=content.local.de.json`) und eine männliche Stimme mit Schweizer Akzent aus der Voice Library wählen – oder die eigene Stimme klonen.
+
+### Branding
+
+`brand.preset: "ubs"` setzt Rot/Weiss, Schrift und eckigere Bedienelemente. Das **Logo wird nicht mitgeliefert**: die freigegebene Datei nach `public/brand/` legen und `brand.logo` eintragen (z. B. `"brand/logo.svg"`); ohne Logo steht der Name als Text.
+
 ## Buch-Modus
 
 - **Echtes 3D-Buch**: Seiten biegen sich beim Umblättern, Samt-Einband mit Goldprägung, Goldschnitt, Pelzkante und Brosche
@@ -65,7 +104,10 @@ npm run build:single   # -> dist-single/index.html (alles in einer Datei, ohne G
 
 ### In einem GitHub Codespace
 
+Das Repository bringt eine `.devcontainer/devcontainer.json` mit (Node 22, Port 5173, `npm install` automatisch, fragt nach `ELEVENLABS_API_KEY`).
+
 ```bash
+git switch feature/santa-ai && git pull
 npm install
 npm run dev -- --host
 ```

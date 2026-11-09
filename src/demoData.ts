@@ -12,6 +12,10 @@ export interface Guest {
   /** 0 = engelsgleich … 100 = Kohle-Kandidat */
   score: number;
   revealed: boolean;
+  /** Eigene Geschichte (z. B. aus dem Word-Dokument) – Santa liest sie wörtlich vor */
+  story?: string;
+  /** Kapitel-Untertitel, z. B. „Der sparsame Superbanker“ */
+  title?: string;
 }
 
 export interface EventInfo {

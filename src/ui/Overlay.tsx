@@ -3,6 +3,7 @@ import { sfx } from '../audio';
 import { director } from '../santa/director';
 import { useSanta, type AppMode } from '../santa/santaStore';
 import { guestIndexForPage, lastPage, useBook, useStrings } from '../store';
+import { useContent } from '../content';
 import { IconBook, IconExpand, IconLeft, IconMute, IconQuill, IconRight, IconSound, IconStamp } from './icons';
 
 function toggleFullscreen() {
@@ -72,6 +73,8 @@ export function Overlay() {
   const [picker, setPicker] = useState(false);
   const pickerRef = useRef<HTMLDivElement>(null);
   const idle = useIdle(4000);
+  const brand = useContent((st) => st.brand);
+  const cinema = useSanta((st) => st.mode === 'santa' && (st.letterbox || !!st.titleCard));
 
   const max = lastPage(guests.length);
   const gi = guestIndexForPage(page, guests.length);
@@ -112,9 +115,16 @@ export function Overlay() {
   ];
 
   return (
-    <div className={`overlay ${idle && page > 0 && mode === 'book' && !hostOpen && !picker ? 'is-idle' : ''} ${ready ? 'is-ready' : ''}`}>
+    <div
+      className={`overlay ${idle && page > 0 && mode === 'book' && !hostOpen && !picker ? 'is-idle' : ''} ${ready ? 'is-ready' : ''} ${cinema ? 'is-cinema' : ''}`}
+    >
       <header className="topbar">
         <div className="brand">
+          {(brand.logo || brand.name) && (
+            <span className="brand-mark">
+              {brand.logo ? <img src={brand.logo} alt={brand.name ?? ''} /> : <span className="brand-wordmark">{brand.name}</span>}
+            </span>
+          )}
           <span className="brand-script">Santa's</span>
           <span className="brand-title">Naughty Book</span>
           {(page > 0 || mode === 'santa') && <span className="brand-event">{event.name}</span>}

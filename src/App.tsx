@@ -5,12 +5,15 @@ import { Experience } from './three/Experience';
 import { HostPanel } from './ui/HostPanel';
 import { Loader } from './ui/Loader';
 import { Overlay } from './ui/Overlay';
-import { SantaOverlay } from './ui/SantaOverlay';
+import { Letterbox, SantaOverlay } from './ui/SantaOverlay';
+import { loadContent } from './content';
+import { useBrand } from './brand';
 import { useSanta } from './santa/santaStore';
 import { santaRuntime } from './santa/santaRuntime';
 import { captureMode } from './config';
+import { director } from './santa/director';
 
-if (captureMode) Object.assign(window, { __santaStore: useSanta, __santaRT: santaRuntime });
+if (captureMode) Object.assign(window, { __santaStore: useSanta, __santaRT: santaRuntime, __director: director });
 
 function hasWebGL() {
   try {
@@ -123,6 +126,11 @@ export default function App() {
   const sceneRef = useRef<HTMLDivElement>(null);
   useKeyboard();
   useSwipe(sceneRef);
+  useBrand();
+
+  useEffect(() => {
+    void loadContent();
+  }, []);
 
   useEffect(() => {
     document.documentElement.lang = locale;
@@ -148,6 +156,7 @@ export default function App() {
       <div className="scene-wrap" ref={sceneRef}>
         <Experience />
       </div>
+      <Letterbox />
       <Overlay />
       {mode === 'santa' && <SantaOverlay />}
       <HostPanel />

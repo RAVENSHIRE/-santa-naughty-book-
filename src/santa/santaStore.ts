@@ -46,6 +46,10 @@ interface SantaState {
   /** Gäste, die in dieser Runde schon dran waren */
   doneIds: string[];
   error: string | null;
+  /** Filmische Elemente */
+  letterbox: boolean;
+  titleCard: { kicker?: string; title: string; sub?: string } | null;
+  voice: 'checking' | 'elevenlabs' | 'browser' | 'none';
 
   setMode: (m: AppMode) => void;
   patch: (p: Partial<SantaState>) => void;
@@ -68,6 +72,9 @@ export const useSanta = create<SantaState>()((set) => ({
   awaitingPerson: false,
   doneIds: [],
   error: null,
+  letterbox: false,
+  titleCard: null,
+  voice: 'checking',
   setMode: (mode) => set({ mode }),
   patch: (p) => set(p),
 }));

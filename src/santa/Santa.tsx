@@ -303,7 +303,10 @@ export function Santa() {
 
     // Mund (Lippen-Synchronisation über Wortgrenzen + Rauschen)
     let target = 0;
-    if (rt.speaking) {
+    if (rt.voiceActive) {
+      // echte Lautstärke der Stimme
+      target = Math.min(1, rt.voiceLevel * 1.15 + (rt.voiceLevel > 0.06 ? 0.12 : 0));
+    } else if (rt.speaking) {
       a.phase += dt * (8.5 + Math.sin(t * 2.3) * 2.5);
       const sinceWord = now - rt.lastBoundary;
       const boost = rt.lastBoundary > 0 && sinceWord < 400 ? 0.35 * (1 - sinceWord / 400) : 0;
