@@ -5,7 +5,7 @@ import { QUALITY } from '../../config';
 import { makeFurMaterial, makeFurMesh, makeVelvet } from '../materials';
 
 /** Santas Mütze: roter Samt, Pelzkrempe und Bommel (Fell per Shell-Texturing) */
-export function SantaHat(props: ThreeElements['group']) {
+export function SantaHat({ furScale = 1, ...props }: ThreeElements['group'] & { furScale?: number }) {
   const res = useMemo(() => {
     const curve = new THREE.CatmullRomCurve3([
       new THREE.Vector3(0, 0, 0),
@@ -36,9 +36,9 @@ export function SantaHat(props: ThreeElements['group']) {
     const tip = curve.getPointAt(1);
     const shells = QUALITY.furShells;
     const brimGeo = new THREE.TorusGeometry(0.31, 0.075, 18, 72);
-    const brimMat = makeFurMaterial({ length: 0.045, density: [340, 80], shells, droop: 0.25 });
+    const brimMat = makeFurMaterial({ length: 0.045 / Math.sqrt(furScale), density: [340 * furScale, 80 * furScale], shells, droop: 0.25 });
     const pomGeo = new THREE.SphereGeometry(0.085, 32, 20);
-    const pomMat = makeFurMaterial({ length: 0.045, density: [110, 55], shells, droop: 0.3 });
+    const pomMat = makeFurMaterial({ length: 0.045 / Math.sqrt(furScale), density: [110 * furScale, 55 * furScale], shells, droop: 0.3 });
     return {
       body,
       tip,
@@ -46,7 +46,7 @@ export function SantaHat(props: ThreeElements['group']) {
       brim: makeFurMesh(brimGeo, brimMat, shells),
       pom: makeFurMesh(pomGeo, pomMat, shells),
     };
-  }, []);
+  }, [furScale]);
   return (
     <group {...props}>
       <mesh geometry={res.body} material={res.velvet} castShadow receiveShadow />

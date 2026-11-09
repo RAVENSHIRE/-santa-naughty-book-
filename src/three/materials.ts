@@ -22,7 +22,17 @@ export function makeGold(roughness = 0.3) {
  * Fell per „Shell Texturing“: dieselbe Geometrie wird N-mal (InstancedMesh)
  * entlang der Normalen aufgeblasen; pro Schale werden immer mehr Pixel verworfen.
  */
-export function makeFurMaterial(opts: { length: number; density: [number, number]; shells: number; color?: string; droop?: number }) {
+export function makeFurMaterial(opts: {
+  length: number;
+  density: [number, number];
+  shells: number;
+  color?: string;
+  droop?: number;
+  /** Wellen/Locken (0 = glatt) */
+  curl?: number;
+  /** Farbvariation einzelner Haare (gelblich/grau) und tiefere Wurzeln */
+  tint?: number;
+}) {
   const mat = new THREE.MeshStandardMaterial({ color: opts.color ?? palette.fur, roughness: 1, metalness: 0 });
   mat.defines = { ...(mat.defines ?? {}), USE_UV: '' };
   const uniforms = {
@@ -30,6 +40,8 @@ export function makeFurMaterial(opts: { length: number; density: [number, number
     uLen: { value: opts.length },
     uDensity: { value: new THREE.Vector2(opts.density[0], opts.density[1]) },
     uDroop: { value: opts.droop ?? 0.3 },
+    uCurl: { value: opts.curl ?? 0 },
+    uTint: { value: opts.tint ?? 0 },
   };
   mat.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, uniforms);
@@ -40,6 +52,7 @@ export function makeFurMaterial(opts: { length: number; density: [number, number
         uniform float uShells;
         uniform float uLen;
         uniform float uDroop;
+        uniform float uCurl;
         varying float vShell;`,
       )
       .replace(
@@ -48,13 +61,19 @@ export function makeFurMaterial(opts: { length: number; density: [number, number
         float furShell = float(gl_InstanceID) / max(uShells - 1.0, 1.0);
         vShell = furShell;
         transformed += objectNormal * (furShell * uLen);
-        transformed.y -= furShell * furShell * uLen * uDroop;`,
+        transformed.y -= furShell * furShell * uLen * uDroop;
+        // Locken: ganze Strähnen wellen sich gemeinsam
+        float furW = furShell * uLen * uCurl;
+        transformed.x += sin(position.y * 37.0 + position.z * 23.0 + furShell * 5.0) * furW;
+        transformed.z += cos(position.x * 31.0 + position.y * 19.0 + furShell * 4.0) * furW * 0.6;
+        transformed.y += sin(position.x * 29.0 + position.z * 17.0) * furW * 0.4;`,
       );
     shader.fragmentShader = shader.fragmentShader
       .replace(
         '#include <common>',
         `#include <common>
         uniform vec2 uDensity;
+        uniform float uTint;
         varying float vShell;
         float furHash(vec2 p) {
           p = fract(p * vec2(123.34, 456.21));
@@ -76,10 +95,14 @@ export function makeFurMaterial(opts: { length: number; density: [number, number
           float thick = 0.62 * (1.0 - vShell / furLen) + 0.06;
           if (length(furF) > thick) discard;
         }
-        diffuseColor.rgb *= mix(0.5, 1.06, vShell) * (0.9 + 0.1 * furH);`,
+        diffuseColor.rgb *= mix(0.5, 1.06, vShell) * (0.9 + 0.1 * furH);
+        // einzelne Haare leicht gelblich oder grau, Wurzeln dunkler (mehr Tiefe)
+        float furT = furHash(furId + 1.7);
+        diffuseColor.rgb *= mix(vec3(1.0), furT > 0.5 ? vec3(1.0, 0.92, 0.8) : vec3(0.86, 0.86, 0.88), abs(furT - 0.5) * 2.0 * uTint);
+        diffuseColor.rgb *= 1.0 - uTint * 0.22 * (1.0 - vShell);`,
       );
   };
-  mat.customProgramCacheKey = () => 'fur-shells-v1';
+  mat.customProgramCacheKey = () => 'fur-shells-v2';
   return mat;
 }
 

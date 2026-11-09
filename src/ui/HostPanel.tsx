@@ -2,6 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import type { Guest, Verdict } from '../demoData';
 import type { Locale } from '../i18n';
 import { useBook, useStrings } from '../store';
+import { applyContent, contentSettings, useContent, type SantaLanguage } from '../content';
+import { director } from '../santa/director';
+import { useSanta } from '../santa/santaStore';
+import { prerender, resetVoice, voiceAvailable } from '../santa/voice';
 import { IconClose, IconDown, IconEye, IconTrash, IconUp } from './icons';
 
 type Downloads = { save: (r: { filename: string; data: string }) => Promise<unknown> };
@@ -88,6 +92,20 @@ function GuestCard({ g, index, total }: { g: Guest; index: number; total: number
             <span className="field-label">{s.naughtyList}</span>
             <textarea className="input" rows={3} value={g.naughty.join('\n')} onChange={(e) => updateGuest(g.id, { naughty: e.target.value.split('\n') })} />
           </label>
+          <label className="field">
+            <span className="field-label">{s.chapterTitle}</span>
+            <input className="input" value={g.title ?? ''} maxLength={120} onChange={(e) => updateGuest(g.id, { title: e.target.value || undefined })} />
+          </label>
+          <label className="field">
+            <span className="field-label">{s.ownStory}</span>
+            <textarea
+              className="input"
+              rows={4}
+              value={g.story ?? ''}
+              placeholder={s.ownStoryHint}
+              onChange={(e) => updateGuest(g.id, { story: e.target.value || undefined })}
+            />
+          </label>
           <div className="guest-actions">
             <button
               className="btn btn-ghost"
@@ -119,6 +137,74 @@ function GuestCard({ g, index, total }: { g: Guest; index: number; total: number
   );
 }
 
+/** Santas Sprache + ElevenLabs-Stimme vorbereiten (alle Sätze vorab aufnehmen → ohne Wartezeit beim Event) */
+function VoiceSection() {
+  const s = useStrings();
+  const language = useContent((st) => st.language);
+  const setLanguage = useContent((st) => st.setLanguage);
+  const source = useContent((st) => st.source);
+  const voiceId = useContent((st) => st.voice.voiceId);
+  const [state, setState] = useState<'idle' | 'checking' | 'eleven' | 'browser'>('checking');
+  const [progress, setProgress] = useState<[number, number] | null>(null);
+  const [msg, setMsg] = useState('');
+
+  useEffect(() => {
+    let alive = true;
+    void voiceAvailable().then((ok) => alive && setState(ok ? 'eleven' : 'browser'));
+    return () => {
+      alive = false;
+    };
+  }, [voiceId]);
+
+  const prepare = async () => {
+    setMsg('');
+    resetVoice();
+    if (!(await voiceAvailable())) {
+      setState('browser');
+      setMsg(s.prepareFailed);
+      return;
+    }
+    const texts = director.scriptTexts();
+    const ok = await prerender(texts, (d, n) => setProgress([d, n]));
+    setProgress(null);
+    setMsg(ok > 0 ? s.prepared(ok) : s.prepareFailed);
+    if (ok > 0) useSanta.getState().patch({ voice: 'elevenlabs' });
+  };
+
+  return (
+    <section className="host-section">
+      <h3>{s.voiceSection}</h3>
+      <div className="field-row">
+        <label className="field">
+          <span className="field-label">{s.santaLanguage}</span>
+          <select className="input" value={language} onChange={(e) => setLanguage(e.target.value as SantaLanguage)}>
+            <option value="gsw">{s.langGsw}</option>
+            <option value="de">{s.langDe}</option>
+            <option value="en">{s.langEn}</option>
+          </select>
+        </label>
+      </div>
+      <div className="voice-row">
+        <span className={`status-chip ${state === 'eleven' ? 'is-good' : ''}`}>
+          {state === 'eleven' ? s.voiceEleven : state === 'browser' ? s.voiceBrowser : s.voiceChecking}
+        </span>
+        <button className="btn btn-ghost" onClick={() => void prepare()} disabled={!!progress}>
+          {progress ? s.preparing(progress[0], progress[1]) : s.prepareVoice}
+        </button>
+      </div>
+      {msg && (
+        <p className="note" role="status">
+          {msg}
+        </p>
+      )}
+      <p className="voice-note">
+        {s.voiceHelp}
+        {source === 'file' ? ` · ${s.contentFile} ✓` : ''}
+      </p>
+    </section>
+  );
+}
+
 export function HostPanel() {
   const s = useStrings();
   const open = useBook((st) => st.hostOpen);
@@ -142,7 +228,11 @@ export function HostPanel() {
   }, [note]);
 
   const json = () =>
-    JSON.stringify({ app: 'santa-naughty-book', version: 1, event, guests: guests.map(({ id: _id, revealed: _r, ...g }) => g) }, null, 2);
+    JSON.stringify(
+      { app: 'santa-naughty-book', version: 2, ...contentSettings(), event, guests: guests.map(({ id: _id, revealed: _r, ...g }) => g) },
+      null,
+      2,
+    );
 
   const exportJson = async () => {
     const data = json();
@@ -182,7 +272,9 @@ export function HostPanel() {
     const reader = new FileReader();
     reader.onload = () => {
       try {
-        setNote(importData(JSON.parse(String(reader.result))) ? s.imported : s.importFailed);
+        const d = JSON.parse(String(reader.result));
+        const full = d && typeof d === 'object' && ('brand' in d || 'voice' in d || 'story' in d || 'language' in d);
+        setNote((full ? applyContent(d) : importData(d)) ? s.imported : s.importFailed);
       } catch {
         setNote(s.importFailed);
       }
@@ -257,6 +349,8 @@ export function HostPanel() {
               {s.bulkAddButton}
             </button>
           </section>
+
+          <VoiceSection />
 
           <section className="host-section">
             <h3>{s.dataSection}</h3>

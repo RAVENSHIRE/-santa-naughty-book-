@@ -11,11 +11,14 @@ export function Lights() {
   const fire = useRef<THREE.PointLight>(null);
   const candle = useRef<THREE.PointLight>(null);
   const spot = useRef<THREE.SpotLight>(null);
+  const santaKey = useRef<THREE.SpotLight>(null);
   const target = useMemo(() => new THREE.Object3D(), []);
+  const santaTarget = useMemo(() => new THREE.Object3D(), []);
 
   useEffect(() => {
     if (spot.current) spot.current.target = target;
-  }, [target]);
+    if (santaKey.current) santaKey.current.target = santaTarget;
+  }, [target, santaTarget]);
 
   useFrame(({ clock }) => {
     const t = clock.elapsedTime;
@@ -45,6 +48,9 @@ export function Lights() {
         shadow-camera-far={16}
       />
       <primitive object={target} position={[0, 0.45, 0]} />
+      {/* weiches Führungslicht auf Santas Gesicht (wie das Fotolicht im Referenzbild) */}
+      <spotLight ref={santaKey} position={[1.6, 4.4, 2.2]} angle={0.42} penumbra={1} intensity={70} decay={2} color="#ffe4c8" />
+      <primitive object={santaTarget} position={[0, 2.4, -2.6]} />
       <pointLight ref={candle} position={[CANDLE_POS[0], 0.92, CANDLE_POS[2]]} color="#ffad5c" intensity={CANDLE_I} decay={2} distance={8} />
       <directionalLight position={[7, 6, -8]} intensity={0.55} color="#89a6ff" />
     </>

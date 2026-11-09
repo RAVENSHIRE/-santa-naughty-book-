@@ -5,6 +5,15 @@ import { Experience } from './three/Experience';
 import { HostPanel } from './ui/HostPanel';
 import { Loader } from './ui/Loader';
 import { Overlay } from './ui/Overlay';
+import { Letterbox, SantaOverlay } from './ui/SantaOverlay';
+import { loadContent } from './content';
+import { useBrand } from './brand';
+import { useSanta } from './santa/santaStore';
+import { santaRuntime } from './santa/santaRuntime';
+import { captureMode } from './config';
+import { director } from './santa/director';
+
+if (captureMode) Object.assign(window, { __santaStore: useSanta, __santaRT: santaRuntime, __director: director });
 
 function hasWebGL() {
   try {
@@ -23,6 +32,7 @@ function useKeyboard() {
       if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable)) return;
       const st = useBook.getState();
       const busy = st.reveal.phase === 'suspense' || st.reveal.phase === 'slam';
+      if (useSanta.getState().mode === 'santa' && !['h', 'H', 'f', 'F', 'Escape'].includes(e.key)) return;
       let handled = true;
       switch (e.key) {
         case 'ArrowRight':
@@ -94,6 +104,7 @@ function useSwipe(ref: React.RefObject<HTMLDivElement | null>) {
       if (performance.now() - t0 > 800 || Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.3) return;
       const st = useBook.getState();
       if (st.reveal.phase === 'suspense' || st.reveal.phase === 'slam' || st.hostOpen) return;
+      if (useSanta.getState().mode === 'santa') return;
       sfx.unlock();
       if (dx < 0) st.next();
       else st.prev();
@@ -110,10 +121,16 @@ function useSwipe(ref: React.RefObject<HTMLDivElement | null>) {
 export default function App() {
   const s = useStrings();
   const locale = useBook((st) => st.locale);
+  const mode = useSanta((st) => st.mode);
   const [webgl] = useState(hasWebGL);
   const sceneRef = useRef<HTMLDivElement>(null);
   useKeyboard();
   useSwipe(sceneRef);
+  useBrand();
+
+  useEffect(() => {
+    void loadContent();
+  }, []);
 
   useEffect(() => {
     document.documentElement.lang = locale;
@@ -139,7 +156,9 @@ export default function App() {
       <div className="scene-wrap" ref={sceneRef}>
         <Experience />
       </div>
+      <Letterbox />
       <Overlay />
+      {mode === 'santa' && <SantaOverlay />}
       <HostPanel />
       <Loader />
     </div>

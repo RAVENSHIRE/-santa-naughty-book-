@@ -898,3 +898,703 @@ input[type='range'] {
     display: none;
   }
 }
+
+/* ---------- Modus-Umschalter ---------- */
+
+.mode-switch {
+  display: inline-flex;
+  padding: 4px;
+  gap: 2px;
+  border-radius: 999px;
+  background: var(--glass);
+  border: 1px solid var(--line);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.mode-switch button {
+  border: none;
+  background: transparent;
+  color: var(--cream-dim);
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 8px 16px;
+  border-radius: 999px;
+  cursor: pointer;
+  min-height: 36px;
+}
+
+.mode-switch button.is-active {
+  color: #3a1406;
+  background: linear-gradient(180deg, #fbe7a6 0%, #e5c072 50%, #b8862f 100%);
+}
+
+/* ---------- Santa AI ---------- */
+
+.santa-ui {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.8s ease;
+  font-family: var(--font-body);
+}
+
+.santa-ui.is-ready {
+  opacity: 1;
+}
+
+.santa-ui > *,
+.santa-bottom > * {
+  pointer-events: auto;
+}
+
+.santa-start {
+  position: absolute;
+  left: max(18px, env(safe-area-inset-left));
+  bottom: max(18px, env(safe-area-inset-bottom));
+  width: min(400px, calc(100vw - 36px));
+}
+
+.santa-card {
+  padding: 20px 22px 18px;
+  border-radius: 18px;
+  background: var(--glass-strong);
+  border: 1px solid var(--line);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  animation: rise 0.9s ease both;
+}
+
+.santa-card h2 {
+  margin: 0 0 8px;
+  font-family: var(--font-title);
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--cream);
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.santa-card h2 .brand-script {
+  font-size: 40px;
+}
+
+.santa-card p {
+  margin: 0 0 10px;
+  font-size: 16px;
+  line-height: 1.45;
+}
+
+.santa-finished {
+  color: var(--gold-strong);
+  font-family: var(--font-heading);
+  font-weight: 600;
+}
+
+.santa-toggles {
+  display: flex;
+  gap: 18px;
+  margin: 6px 0 14px;
+}
+
+.santa-toggles .toggle {
+  font-size: 15px;
+  color: var(--cream);
+}
+
+.santa-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.warn {
+  color: #ffc58a;
+  font-size: 14px;
+}
+
+.small {
+  font-size: 12px !important;
+  font-family: var(--font-ui);
+}
+
+.santa-status {
+  position: absolute;
+  top: max(74px, calc(env(safe-area-inset-top) + 64px));
+  left: max(16px, env(safe-area-inset-left));
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px 6px 10px;
+  border-radius: 999px;
+  background: var(--glass);
+  border: 1px solid var(--line);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  font: 13px var(--font-ui);
+  color: var(--cream-dim);
+}
+
+.status-chip svg {
+  width: 16px;
+  height: 16px;
+}
+
+.status-chip.is-good {
+  color: #d6f5d8;
+  border-color: rgba(120, 210, 130, 0.55);
+}
+
+.status-chip.is-bad {
+  color: #ffb4a8;
+  border-color: rgba(255, 120, 100, 0.45);
+}
+
+.status-chip.is-warn {
+  color: #ffd79a;
+}
+
+.status-chip.is-live {
+  color: #fff;
+  border-color: rgba(255, 210, 120, 0.8);
+  box-shadow: 0 0 0 3px rgba(255, 200, 100, 0.15);
+}
+
+.mic-meter {
+  width: 34px;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.15);
+  overflow: hidden;
+  display: inline-block;
+}
+
+.mic-meter span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #8fd694, #f3d98b);
+  transform-origin: left center;
+  transform: scaleX(0.05);
+}
+
+.cam-preview {
+  position: absolute;
+  top: max(74px, calc(env(safe-area-inset-top) + 64px));
+  right: max(16px, env(safe-area-inset-right));
+  width: clamp(120px, 16vw, 220px);
+  aspect-ratio: 4 / 3;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 2px solid rgba(227, 194, 122, 0.4);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  background: #000;
+  transition: border-color 0.3s;
+}
+
+.cam-preview.has-person {
+  border-color: rgba(120, 220, 130, 0.85);
+}
+
+.cam-preview video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1);
+  display: block;
+}
+
+.face-box {
+  position: absolute;
+  border: 2px solid #8fe39a;
+  border-radius: 10px;
+  box-shadow: 0 0 12px rgba(140, 230, 150, 0.6);
+  transition: all 0.12s linear;
+}
+
+.santa-bottom {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: max(14px, env(safe-area-inset-bottom));
+  width: min(880px, calc(100vw - 24px));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.heard {
+  align-self: flex-end;
+  max-width: 80%;
+  padding: 8px 14px;
+  border-radius: 14px 14px 4px 14px;
+  background: rgba(30, 50, 34, 0.75);
+  border: 1px solid rgba(140, 210, 150, 0.35);
+  color: #e2f6e4;
+  font-style: italic;
+  font-size: 16px;
+}
+
+.heard span {
+  font-family: var(--font-ui);
+  font-style: normal;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0.7;
+  margin-right: 6px;
+}
+
+.caption {
+  width: 100%;
+  padding: 14px 22px 16px;
+  border-radius: 18px;
+  background: var(--glass-strong);
+  border: 1px solid var(--line);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  text-align: center;
+  font-size: clamp(18px, 2.3vw, 27px);
+  line-height: 1.35;
+  color: var(--cream);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  animation: rise 0.35s ease both;
+}
+
+.caption-who {
+  display: block;
+  font-family: var(--font-heading);
+  font-size: 11px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 4px;
+}
+
+.name-panel {
+  width: min(560px, 100%);
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: var(--glass-strong);
+  border: 1px solid rgba(227, 194, 122, 0.55);
+  font-family: var(--font-ui);
+  animation: rise 0.4s ease both;
+}
+
+.name-panel-title {
+  font-family: var(--font-heading);
+  font-size: 12px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 8px;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+  max-height: 96px;
+  overflow-y: auto;
+}
+
+.chip {
+  border: 1px solid rgba(227, 194, 122, 0.4);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--cream);
+  border-radius: 999px;
+  padding: 7px 13px;
+  cursor: pointer;
+  font: 14px var(--font-ui);
+}
+
+.chip:hover {
+  background: rgba(227, 194, 122, 0.2);
+}
+
+.name-form {
+  display: flex;
+  gap: 8px;
+}
+
+.host-controls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.host-controls .btn {
+  min-height: 40px;
+  padding: 0 14px;
+  font-size: 12px;
+}
+
+.host-controls .btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.keys-hint {
+  margin: 0;
+  font: 11px var(--font-ui);
+  color: rgba(246, 236, 216, 0.45);
+}
+
+@media (max-width: 640px) {
+  .mode-switch button {
+    padding: 8px 11px;
+    font-size: 11px;
+  }
+  .santa-start {
+    left: 12px;
+    right: 12px;
+    width: auto;
+  }
+  .santa-status {
+    top: 66px;
+  }
+  .status-chip {
+    font-size: 11px;
+    padding: 4px 10px 4px 8px;
+  }
+  .cam-preview {
+    top: 66px;
+    width: 104px;
+  }
+  .keys-hint {
+    display: none;
+  }
+}
+
+/* ---------- Kino: Letterbox, Titelkarten, Untertitel ---------- */
+
+.letterbox {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.letterbox span {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 11.5vh;
+  background: #000;
+  transition: transform 1.4s cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+.lb-top {
+  top: 0;
+  transform: translateY(-100%);
+}
+
+.lb-bottom {
+  bottom: 0;
+  transform: translateY(100%);
+}
+
+.letterbox.is-on span {
+  transform: translateY(0);
+}
+
+.title-card {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 0 6vw;
+  pointer-events: none !important;
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.55) 0%, rgba(0, 0, 0, 0.25) 45%, transparent 75%);
+  opacity: 0;
+  transition: opacity 0.9s ease;
+}
+
+.title-card.is-visible {
+  opacity: 1;
+}
+
+.title-kicker {
+  font-family: var(--font-heading);
+  font-size: clamp(12px, 1.3vw, 16px);
+  letter-spacing: 0.42em;
+  text-transform: uppercase;
+  color: var(--cream-dim);
+  margin-bottom: 18px;
+  transform: translateY(8px);
+  transition: transform 1.6s ease;
+}
+
+.title-main {
+  font-family: var(--font-title);
+  font-weight: 700;
+  font-size: clamp(34px, 6.4vw, 92px);
+  line-height: 1.05;
+  color: var(--gold-strong);
+  text-shadow: 0 4px 30px rgba(0, 0, 0, 0.7), 0 0 60px rgba(255, 190, 90, 0.25);
+  letter-spacing: 0.02em;
+  transform: scale(0.97);
+  transition: transform 5s ease-out, letter-spacing 5s ease-out;
+}
+
+.title-rule {
+  width: 0;
+  height: 2px;
+  margin: 22px 0 16px;
+  background: var(--brand, var(--gold));
+  transition: width 1.4s 0.3s ease;
+}
+
+.title-sub {
+  font-family: var(--font-body);
+  font-style: italic;
+  font-size: clamp(16px, 2vw, 26px);
+  color: var(--cream);
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.8);
+}
+
+.title-card.is-visible .title-kicker {
+  transform: none;
+}
+
+.title-card.is-visible .title-main {
+  transform: none;
+  letter-spacing: 0.05em;
+}
+
+.title-card.is-visible .title-rule {
+  width: min(180px, 30vw);
+}
+
+.santa-status,
+.cam-preview,
+.santa-bottom .caption,
+.santa-bottom .host-controls,
+.santa-bottom .keys-hint {
+  transition: opacity 0.6s ease;
+}
+
+.santa-status.is-hidden {
+  opacity: 0;
+}
+
+.santa-bottom.is-title .caption,
+.santa-bottom.is-title .heard {
+  opacity: 0;
+}
+
+.santa-bottom.is-cinema .host-controls,
+.santa-bottom.is-cinema .keys-hint,
+.santa-bottom.is-title .host-controls,
+.santa-bottom.is-title .keys-hint {
+  opacity: 0.22;
+}
+
+.santa-bottom.is-cinema .host-controls:hover,
+.santa-bottom.is-title .host-controls:hover,
+.santa-bottom.is-cinema .host-controls:focus-within {
+  opacity: 1;
+}
+
+/* Untertitel im Kino-Modus: direkt auf dem schwarzen Balken */
+.santa-bottom.is-cinema .caption {
+  background: transparent;
+  border-color: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  padding: 4px 12px;
+  font-size: clamp(17px, 2vw, 25px);
+  text-shadow: 0 2px 6px #000, 0 0 2px #000;
+}
+
+.santa-bottom.is-cinema .caption-who {
+  display: none;
+}
+
+.overlay.is-cinema .topbar {
+  opacity: 0.14;
+}
+
+.overlay.is-cinema .topbar:hover,
+.overlay.is-cinema .topbar:focus-within {
+  opacity: 1;
+}
+
+.santa-kicker {
+  font-family: var(--font-heading);
+  font-size: 11px;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--cream-dim);
+  margin-bottom: 4px;
+}
+
+.brand-mark {
+  display: inline-flex;
+  align-items: center;
+  align-self: center;
+  padding-right: 10px;
+  margin-right: 2px;
+  border-right: 1px solid var(--line);
+}
+
+.brand-mark img {
+  height: 22px;
+  width: auto;
+  display: block;
+}
+
+.brand-wordmark {
+  font-family: var(--font-brand, var(--font-ui));
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: 0.04em;
+  color: var(--cream);
+}
+
+.voice-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.voice-note {
+  font: 13px/1.45 var(--font-ui);
+  color: var(--cream-dim);
+  margin: 6px 0 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .letterbox span,
+  .title-main,
+  .title-rule,
+  .title-kicker {
+    transition-duration: 0.01s !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .letterbox span {
+    height: 8vh;
+  }
+  .brand-mark {
+    display: none;
+  }
+}
+
+/* ---------- Branding: UBS ---------- */
+/* Farben/Schrift aus content.json → CSS-Variablen (siehe src/brand.ts). Das Logo legt der Gastgeber selbst ab. */
+
+html[data-brand='ubs'] {
+  --gold: #e9e9e9;
+  --gold-strong: #ffffff;
+  --cream: #ffffff;
+  --cream-dim: rgba(255, 255, 255, 0.72);
+  --glass: rgba(12, 12, 14, 0.62);
+  --glass-strong: rgba(10, 10, 12, 0.88);
+  --line: rgba(255, 255, 255, 0.2);
+  --font-heading: var(--font-brand);
+  --font-ui: var(--font-brand);
+}
+
+html[data-brand='ubs'] .btn,
+html[data-brand='ubs'] .mode-switch button,
+html[data-brand='ubs'] .btn-label {
+  font-family: var(--font-brand);
+  letter-spacing: 0.02em;
+}
+
+html[data-brand='ubs'] .btn {
+  border-radius: 4px;
+}
+
+html[data-brand='ubs'] .btn-gold,
+html[data-brand='ubs'] .mode-switch button.is-active,
+html[data-brand='ubs'] .icon-btn--gold {
+  background: var(--brand);
+  color: var(--brand-text);
+  border: 1px solid var(--brand);
+  text-shadow: none;
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.35);
+}
+
+html[data-brand='ubs'] .btn-gold:hover:not(:disabled),
+html[data-brand='ubs'] .icon-btn--gold:hover:not(:disabled) {
+  filter: brightness(1.08);
+  background: var(--brand);
+}
+
+html[data-brand='ubs'] .mode-switch,
+html[data-brand='ubs'] .mode-switch button,
+html[data-brand='ubs'] .brand {
+  border-radius: 6px;
+}
+
+html[data-brand='ubs'] .santa-card,
+html[data-brand='ubs'] .caption,
+html[data-brand='ubs'] .name-panel {
+  border-radius: 8px;
+}
+
+html[data-brand='ubs'] .santa-card {
+  border-top: 3px solid var(--brand);
+}
+
+html[data-brand='ubs'] .caption {
+  font-family: var(--font-brand);
+  font-weight: 300;
+}
+
+html[data-brand='ubs'] .caption-who,
+html[data-brand='ubs'] .name-panel-title {
+  color: var(--brand-accent);
+}
+
+html[data-brand='ubs'] .title-kicker {
+  font-family: var(--font-brand);
+  letter-spacing: 0.32em;
+  color: #fff;
+}
+
+html[data-brand='ubs'] .title-main {
+  font-family: var(--font-brand);
+  font-weight: 300;
+  text-transform: none;
+  color: #fff;
+  text-shadow: 0 4px 30px rgba(0, 0, 0, 0.75);
+}
+
+html[data-brand='ubs'] .title-sub {
+  font-family: var(--font-brand);
+  font-style: normal;
+  font-weight: 300;
+}
+
+html[data-brand='ubs'] .chip:hover {
+  background: rgba(230, 0, 0, 0.35);
+}
+
+html[data-brand='ubs'] .input:focus {
+  border-color: var(--brand);
+}

@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { sfx } from '../audio';
+import { director } from '../santa/director';
+import { useSanta, type AppMode } from '../santa/santaStore';
 import { guestIndexForPage, lastPage, useBook, useStrings } from '../store';
+import { useContent } from '../content';
 import { IconBook, IconExpand, IconLeft, IconMute, IconQuill, IconRight, IconSound, IconStamp } from './icons';
 
 function toggleFullscreen() {
@@ -33,8 +36,30 @@ function useIdle(ms: number) {
   return idle;
 }
 
+function ModeSwitch() {
+  const s = useStrings();
+  const mode = useSanta((st) => st.mode);
+  const set = (m: AppMode) => {
+    if (m === mode) return;
+    sfx.unlock();
+    if (m === 'book') director.stop();
+    useSanta.getState().setMode(m);
+  };
+  return (
+    <div className="mode-switch" role="tablist">
+      <button role="tab" aria-selected={mode === 'santa'} className={mode === 'santa' ? 'is-active' : ''} onClick={() => set('santa')}>
+        {s.modeSanta}
+      </button>
+      <button role="tab" aria-selected={mode === 'book'} className={mode === 'book' ? 'is-active' : ''} onClick={() => set('book')}>
+        {s.modeBook}
+      </button>
+    </div>
+  );
+}
+
 export function Overlay() {
   const s = useStrings();
+  const mode = useSanta((st) => st.mode);
   const page = useBook((st) => st.page);
   const guests = useBook((st) => st.guests);
   const event = useBook((st) => st.event);
@@ -48,6 +73,8 @@ export function Overlay() {
   const [picker, setPicker] = useState(false);
   const pickerRef = useRef<HTMLDivElement>(null);
   const idle = useIdle(4000);
+  const brand = useContent((st) => st.brand);
+  const cinema = useSanta((st) => st.mode === 'santa' && (st.letterbox || !!st.titleCard));
 
   const max = lastPage(guests.length);
   const gi = guestIndexForPage(page, guests.length);
@@ -88,15 +115,23 @@ export function Overlay() {
   ];
 
   return (
-    <div className={`overlay ${idle && page > 0 && !hostOpen && !picker ? 'is-idle' : ''} ${ready ? 'is-ready' : ''}`}>
+    <div
+      className={`overlay ${idle && page > 0 && mode === 'book' && !hostOpen && !picker ? 'is-idle' : ''} ${ready ? 'is-ready' : ''} ${cinema ? 'is-cinema' : ''}`}
+    >
       <header className="topbar">
         <div className="brand">
+          {(brand.logo || brand.name) && (
+            <span className="brand-mark">
+              {brand.logo ? <img src={brand.logo} alt={brand.name ?? ''} /> : <span className="brand-wordmark">{brand.name}</span>}
+            </span>
+          )}
           <span className="brand-script">Santa's</span>
           <span className="brand-title">Naughty Book</span>
-          {page > 0 && <span className="brand-event">{event.name}</span>}
+          {(page > 0 || mode === 'santa') && <span className="brand-event">{event.name}</span>}
         </div>
+        <ModeSwitch />
         <div className="top-actions">
-          {page > 0 && (
+          {page > 0 && mode === 'book' && (
             <button className="icon-btn" onClick={act(() => setPage(0))} title={s.closeBook} aria-label={s.closeBook}>
               <IconBook />
             </button>
@@ -114,7 +149,7 @@ export function Overlay() {
         </div>
       </header>
 
-      {page === 0 && (
+      {page === 0 && mode === 'book' && (
         <section className="intro">
           <div className="intro-card">
             <p className="intro-kicker">{event.date}</p>
@@ -133,7 +168,7 @@ export function Overlay() {
         </section>
       )}
 
-      {page > 0 && (
+      {page > 0 && mode === 'book' && (
         <nav className="bottombar" aria-label="Navigation">
           {guest && (
             <button className={`btn btn-gold reveal-btn ${busy ? 'is-busy' : ''}`} onClick={act(startReveal)} disabled={busy}>

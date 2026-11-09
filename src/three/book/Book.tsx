@@ -5,6 +5,7 @@ import { sfx } from '../../audio';
 import { QUALITY, slowmo } from '../../config';
 import { loadFonts } from '../../fonts';
 import { STRINGS } from '../../i18n';
+import { useSanta } from '../../santa/santaStore';
 import { useBook } from '../../store';
 import { palette } from '../../theme';
 import { makeFurMaterial, makeFurMesh, makeVelvet } from '../materials';
@@ -358,6 +359,7 @@ export function Book() {
   const onZone = (side: 'left' | 'right') => (e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation();
     if (e.delta > 8) return;
+    if (useSanta.getState().mode === 'santa') return;
     sfx.unlock();
     const st = useBook.getState();
     if (st.reveal.phase === 'suspense' || st.reveal.phase === 'slam') return;
@@ -365,7 +367,7 @@ export function Book() {
     else st.prev();
   };
   const hover = (on: boolean) => () => {
-    document.body.style.cursor = on ? 'pointer' : '';
+    document.body.style.cursor = on && useSanta.getState().mode === 'book' ? 'pointer' : '';
   };
 
   return (

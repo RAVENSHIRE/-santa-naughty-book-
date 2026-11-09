@@ -60,6 +60,15 @@ export const captureMode = (() => {
   }
 })();
 
+/** Nur für Tests: Santa spricht im Schnelldurchlauf (?fasttalk) */
+export const fastTalk = (() => {
+  try {
+    return new URLSearchParams(window.location.search).has('fasttalk');
+  } catch {
+    return false;
+  }
+})();
+
 /** Debug-Ansicht der generierten Texturen: ?debug=textures */
 export const debugView = (() => {
   try {

@@ -1,0 +1,27 @@
+{
+  "name": "Santa's Naughty Book",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:22",
+  "forwardPorts": [5173, 4173],
+  "portsAttributes": {
+    "5173": { "label": "Santa AI (dev)", "onAutoForward": "openBrowser" },
+    "4173": { "label": "Santa AI (preview)" }
+  },
+  "postCreateCommand": "npm install",
+  "secrets": {
+    "ELEVENLABS_API_KEY": {
+      "description": "API-Key von ElevenLabs für Santas Stimme (bleibt auf dem Server, nie im Browser).",
+      "documentationUrl": "https://elevenlabs.io/app/settings/api-keys"
+    },
+    "ELEVENLABS_VOICE_ID": {
+      "description": "Optional: Voice-ID der Santa-Stimme (z. B. eine Schweizerdeutsch-Stimme aus der ElevenLabs Voice Library)."
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": ["dbaeumer.vscode-eslint", "esbenp.prettier-vscode"],
+      "settings": {
+        "json.schemas": [{ "fileMatch": ["public/content*.json"], "url": "./public/content.schema.json" }]
+      }
+    }
+  }
+}

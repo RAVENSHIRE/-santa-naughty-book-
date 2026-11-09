@@ -3,6 +3,9 @@ import { easing } from 'maath';
 import { useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { isTouch, settleMode, slowmo } from '../config';
+import { SANTA_HEAD, SANTA_POS } from '../santa/Santa';
+import { santaRuntime } from '../santa/santaRuntime';
+import { useSanta } from '../santa/santaStore';
 import { useBook } from '../store';
 import { H, HC, W, WC } from './book/geometry';
 import { runtime } from './runtime';
@@ -14,6 +17,7 @@ const INTRO_LOOK = new THREE.Vector3(-0.55, 0.42, -2.2);
 /** Platz, den die Bedienelemente oben/unten belegen (px) */
 const UI_TOP = 66;
 const STAMP_Y = (0.5 - STAMP.cy / PH) * H;
+const SANTA_DIR = new THREE.Vector3(0.16, 0.05, 1).normalize();
 
 /** Kamerafahrt: Raum-Totale → Buch → (beim Verkünden) Nahaufnahme des Urteils */
 export function CameraRig() {
@@ -31,7 +35,39 @@ export function CameraRig() {
     const fit = (w: number, h: number) => Math.max(w / 2 / tanH, h / 2 / tanV);
     const book = runtime.book;
 
-    if (st.page === 0 || !book) {
+    let smoothPos = 0.7;
+    let smoothLook = 0.55;
+    if (useSanta.getState().mode === 'santa') {
+      // Santa-Modus: Kameraeinstellungen wie in einem Film (Totale, Halbnah, Nah, Buch)
+      const shot = santaRuntime.shot;
+      const portrait = aspect < 0.9;
+      if (shot === 'wide') {
+        tmp.target.set(-0.7, 1.7, -3.4);
+        tmp.pos.copy(tmp.target).addScaledVector(INTRO_DIR, THREE.MathUtils.clamp(fit(portrait ? 4.8 : 11, 6.8), 7.5, 16));
+        smoothPos = 2.6;
+        smoothLook = 2.2;
+      } else if (shot === 'close') {
+        tmp.target.set(SANTA_HEAD.x, SANTA_HEAD.y - 0.2, SANTA_HEAD.z + 0.35);
+        tmp.pos.copy(tmp.target).addScaledVector(SANTA_DIR, THREE.MathUtils.clamp(fit(portrait ? 1.8 : 2.6, 2.3), 2.6, 8));
+        smoothPos = 1.4;
+        smoothLook = 1.1;
+      } else if (shot === 'book' && book) {
+        tmp.local.set(W / 2 + 0.02, STAMP_Y + 0.06, runtime.rightTopZ);
+        book.localToWorld(tmp.local);
+        tmp.target.copy(tmp.local);
+        tmp.pos.copy(tmp.target).addScaledVector(VIEW_DIR, fit(W + 0.25, 1.0));
+        smoothPos = 0.5;
+        smoothLook = 0.4;
+      } else {
+        const reading = santaRuntime.pose === 'read';
+        tmp.target.set(portrait ? 0 : -0.25, reading ? 2.2 : 2.3, SANTA_POS.z + 0.5);
+        const w = portrait ? 3.0 : 4.4;
+        const h = reading ? 3.7 : 4.3;
+        tmp.pos.copy(tmp.target).addScaledVector(SANTA_DIR, THREE.MathUtils.clamp(fit(w, h), 4.2, 15));
+        smoothPos = 1.6;
+        smoothLook = 1.2;
+      }
+    } else if (st.page === 0 || !book) {
       if (aspect < 0.9) {
         tmp.target.set(0.15, 0.62, -0.6);
         tmp.pos.copy(tmp.target).addScaledVector(INTRO_DIR, THREE.MathUtils.clamp(fit(3.4, 5.2), 5.5, 13));
@@ -70,15 +106,30 @@ export function CameraRig() {
       tmp.pos.copy(tmp.target).addScaledVector(VIEW_DIR, dist);
     }
 
+    if (runtime.camOverride) {
+      tmp.pos.set(...runtime.camOverride.pos);
+      tmp.target.set(...runtime.camOverride.target);
+    }
+
     if (!isTouch) {
       tmp.pos.x += state.pointer.x * 0.16;
       tmp.pos.y += state.pointer.y * 0.09;
     }
     tmp.pos.y += Math.sin(state.clock.elapsedTime * 0.45) * 0.02;
 
-    const intro = st.page === 0;
-    easing.damp3(camera.position, tmp.pos, intro ? 1.0 : 0.7, dt);
-    easing.damp3(look.current, tmp.target, intro ? 0.9 : 0.55, dt);
+    const intro = st.page === 0 && useSanta.getState().mode !== 'santa';
+    if (intro) {
+      smoothPos = 1.0;
+      smoothLook = 0.9;
+    }
+    if (santaRuntime.camCut) {
+      // harter Schnitt
+      santaRuntime.camCut = false;
+      camera.position.copy(tmp.pos);
+      look.current.copy(tmp.target);
+    }
+    easing.damp3(camera.position, tmp.pos, smoothPos, dt);
+    easing.damp3(look.current, tmp.target, smoothLook, dt);
     camera.lookAt(look.current);
 
     if (runtime.shake > 0.002) {
