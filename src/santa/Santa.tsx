@@ -20,6 +20,7 @@ import {
   skinTexture,
   tubeGeometry,
 } from './santaParts';
+import { EYE, faceColorTexture, faceNormalTexture, headGeometry, irisGeometry, irisTexture, scleraTexture } from './face';
 import { santaRuntime, type SantaPose } from './santaRuntime';
 import { useSanta } from './santaStore';
 
@@ -67,17 +68,25 @@ const POSES: Record<SantaPose, Pose> = {
 function useMaterials() {
   return useMemo(() => {
     const skinTex = skinTexture();
+    const faceTex = faceColorTexture();
+    const faceNrm = faceNormalTexture();
+    // Haut: leicht ölig, warmes Streulicht (Sheen) statt Plastik
+    const skinProps = { roughness: 0.52, sheen: 0.45, sheenColor: new THREE.Color('#ff9c86'), sheenRoughness: 0.55, clearcoat: 0.08, clearcoatRoughness: 0.45 };
     return {
       velvet: makeVelvet('#7a0b12'),
+      face: new THREE.MeshPhysicalMaterial({ map: faceTex, normalMap: faceNrm, normalScale: new THREE.Vector2(0.55, 0.55), ...skinProps }),
       skin: new THREE.MeshPhysicalMaterial({ map: skinTex, roughness: 0.58, sheen: 0.3, sheenColor: new THREE.Color('#ffc4b0'), sheenRoughness: 0.6 }),
-      nose: new THREE.MeshPhysicalMaterial({ color: '#e79a88', roughness: 0.45, sheen: 0.3, sheenColor: new THREE.Color('#ffd0c0') }),
+      lid: new THREE.MeshPhysicalMaterial({ color: '#d4917a', ...skinProps, side: THREE.DoubleSide }),
+      lash: new THREE.MeshStandardMaterial({ color: '#8b8178', roughness: 0.9 }),
+      lip: new THREE.MeshPhysicalMaterial({ color: '#a4574e', roughness: 0.35, sheen: 0.3, sheenColor: new THREE.Color('#ffb0a0'), clearcoat: 0.25 }),
+      nose: new THREE.MeshPhysicalMaterial({ color: '#ffd2c4', map: skinTex, ...skinProps, roughness: 0.48, clearcoat: 0.12 }),
+      nostril: new THREE.MeshBasicMaterial({ color: '#3b1612' }),
+      sclera: new THREE.MeshPhysicalMaterial({ map: scleraTexture(), roughness: 0.1, clearcoat: 1, clearcoatRoughness: 0.05 }),
+      irisTex: new THREE.MeshPhysicalMaterial({ map: irisTexture(), roughness: 0.3, clearcoat: 1, clearcoatRoughness: 0.03 }),
       glove: new THREE.MeshPhysicalMaterial({ color: '#f4f1ea', roughness: 0.85, sheen: 0.7, sheenColor: new THREE.Color('#ffffff'), sheenRoughness: 0.5 }),
       belt: new THREE.MeshPhysicalMaterial({ color: '#151010', roughness: 0.35, clearcoat: 0.6, clearcoatRoughness: 0.3 }),
       gold: makeGold(0.24),
-      eyeWhite: new THREE.MeshPhysicalMaterial({ color: '#f3efe8', roughness: 0.12, clearcoat: 1 }),
-      iris: new THREE.MeshStandardMaterial({ color: '#4f86c2', roughness: 0.25 }),
-      pupil: new THREE.MeshBasicMaterial({ color: '#0b0b10' }),
-      shine: new THREE.MeshBasicMaterial({ color: '#ffffff' }),
+      shine: new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.7 }),
       mouth: new THREE.MeshStandardMaterial({ color: '#3a0b0b', roughness: 0.6 }),
       lens: new THREE.MeshPhysicalMaterial({ color: '#ffffff', transparent: true, opacity: 0.12, roughness: 0.02, clearcoat: 1, depthWrite: false }),
       paperBack: new THREE.MeshStandardMaterial({ color: '#eadbbb', roughness: 0.9, side: THREE.DoubleSide }),
@@ -156,7 +165,7 @@ export function Santa() {
   const tmpV = useMemo(() => new THREE.Vector3(), []);
 
   const fur = useMemo(() => {
-    const beardOpts = { length: 0.08, spacing: 0.0058, droop: 0.65 };
+    const beardOpts = { length: 0.09, spacing: 0.0055, droop: 0.7, curl: 0.55, tint: 0.75, color: '#ece6dc' };
     const beardMain = furBlob([0.52, 0.5, 0.36], beardOpts);
     beardMain.position.set(0, -0.48, 0.12);
     // unterer Bart hängt am Körper (folgt dem Kopf nicht ganz – wie echte Schwerkraft)
@@ -168,7 +177,7 @@ export function Santa() {
     cheekL.position.set(0.34, -0.32, 0.12);
     const cheekR = furBlob([0.24, 0.4, 0.28], beardOpts);
     cheekR.position.set(-0.34, -0.32, 0.12);
-    const hairOpts = { length: 0.06, spacing: 0.007, droop: 0.4 };
+    const hairOpts = { length: 0.07, spacing: 0.0065, droop: 0.5, curl: 0.6, tint: 0.6, color: '#ebe6de' };
     const hairL = furBlob([0.15, 0.27, 0.27], hairOpts);
     hairL.position.set(0.42, -0.02, -0.06);
     const hairR = furBlob([0.15, 0.27, 0.27], hairOpts);
@@ -178,23 +187,24 @@ export function Santa() {
     const must = (s: number) =>
       furTube(
         [
-          [s * 0.015, -0.155, 0.535],
+          [s * -0.012, -0.15, 0.538],
           [s * 0.12, -0.175, 0.52],
           [s * 0.24, -0.235, 0.455],
           [s * 0.33, -0.31, 0.36],
         ],
-        0.058,
-        { length: 0.05, spacing: 0.0065, droop: 0.4 },
+        0.068,
+        { length: 0.065, spacing: 0.006, droop: 0.55, curl: 0.4, tint: 0.7, color: '#efe9e0' },
       );
+    // buschige, leicht hängende Augenbrauen
     const brow = (s: number) =>
       furTube(
         [
-          [s * 0.06, 0.205, 0.452],
-          [s * 0.17, 0.245, 0.44],
-          [s * 0.28, 0.205, 0.375],
+          [s * 0.05, 0.17, 0.452],
+          [s * 0.16, 0.2, 0.448],
+          [s * 0.27, 0.178, 0.392],
         ],
-        0.03,
-        { length: 0.032, spacing: 0.006, droop: 0.2 },
+        0.034,
+        { length: 0.05, spacing: 0.0055, droop: 0.75, curl: 0.5, tint: 0.8, color: '#e6e1da' },
       );
     const collar = furTorus(0.64, 0.21, { length: 0.09, spacing: 0.009, droop: 0.3 });
     collar.rotation.x = Math.PI / 2;
@@ -209,14 +219,19 @@ export function Santa() {
       body: bodyGeometry(),
       belt: beltGeometry(0.28, 0.58),
       buckle: new THREE.TorusGeometry(0.17, 0.035, 8, 4),
-      lid: new THREE.SphereGeometry(0.081, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2),
-      rim: new THREE.TorusGeometry(0.105, 0.007, 8, 48),
-      lens: new THREE.CircleGeometry(0.103, 32),
+      head: headGeometry(),
+      iris: irisGeometry(),
+      lid: new THREE.SphereGeometry(EYE.r + 0.005, 32, 12, 0, Math.PI * 2, 0, Math.PI / 2),
+      lidLow: new THREE.SphereGeometry(EYE.r + 0.004, 32, 12, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2),
+      lash: new THREE.TorusGeometry(EYE.r + 0.0055, 0.0022, 6, 40, Math.PI),
+      lip: new THREE.CapsuleGeometry(0.017, 0.075, 6, 14),
+      rim: new THREE.TorusGeometry(0.085, 0.0045, 8, 48),
+      lens: new THREE.CircleGeometry(0.084, 32),
       bridge: tubeGeometry(
         [
-          [-0.07, -0.02, 0.555],
-          [0, 0.0, 0.565],
-          [0.07, -0.02, 0.555],
+          [-0.066, -0.004, 0.534],
+          [0, 0.014, 0.55],
+          [0.066, -0.004, 0.534],
         ],
         0.006,
         12,
@@ -225,9 +240,9 @@ export function Santa() {
       temple: (s: number) =>
         tubeGeometry(
           [
-            [s * 0.285, -0.03, 0.51],
-            [s * 0.36, -0.01, 0.36],
-            [s * 0.39, 0.0, 0.16],
+            [s * 0.234, 0.0, 0.5],
+            [s * 0.33, 0.02, 0.36],
+            [s * 0.38, 0.03, 0.16],
           ],
           0.006,
           12,
@@ -294,7 +309,8 @@ export function Santa() {
     // Blinzeln
     if (t > a.blinkAt + 0.16) a.blinkAt = t + 1.8 + Math.random() * 3.2;
     const blinking = t > a.blinkAt && t < a.blinkAt + 0.16;
-    const lidRot = blinking ? 0.35 : -0.95 + (pose.eyes > 0.2 ? 0.35 : 0);
+    // Oberlid deckt den oberen Irisrand ab (realistisch), beim Lesen weiter geschlossen
+    const lidRot = blinking ? 0.62 : -0.32 + ex * 0.6 + (pose.eyes > 0.2 ? 0.18 : 0);
     for (const l of [lidL.current, lidR.current]) if (l) l.rotation.x = THREE.MathUtils.lerp(l.rotation.x, lidRot, blinking ? 0.6 : 0.3);
 
     // Augenbrauen
@@ -370,33 +386,43 @@ export function Santa() {
         <Arm side={1} armRef={armL} elbowRef={elbowL} handRef={handL} mats={mats} />
 
         <group ref={head} position={[0, 3.02, 0.16]} scale={1.18}>
-          <mesh material={mats.skin} scale={[0.92, 1, 0.96]} castShadow receiveShadow>
-            <sphereGeometry args={[0.5, 48, 32]} />
+          <mesh geometry={geo.head} material={mats.face} castShadow receiveShadow />
+          {/* Nase: Rücken, Knolle, Nasenflügel, Nasenlöcher */}
+          <mesh material={mats.nose} position={[0, 0.0, 0.482]} rotation-x={-0.38} scale={[1.15, 1, 0.9]} castShadow>
+            <capsuleGeometry args={[0.04, 0.07, 8, 20]} />
           </mesh>
-          <mesh material={mats.nose} position={[0, -0.04, 0.47]} scale={[1, 0.92, 1.05]} castShadow>
-            <sphereGeometry args={[0.1, 28, 20]} />
+          <mesh material={mats.nose} position={[0, -0.07, 0.515]} scale={[1.05, 0.9, 0.95]} castShadow>
+            <sphereGeometry args={[0.068, 32, 24]} />
           </mesh>
-          {/* Augen */}
+          {[1, -1].map((s) => (
+            <group key={`n${s}`}>
+              <mesh material={mats.nose} position={[s * 0.056, -0.092, 0.48]} scale={[1, 0.85, 1]} castShadow>
+                <sphereGeometry args={[0.04, 24, 18]} />
+              </mesh>
+              <mesh material={mats.nostril} position={[s * 0.026, -0.129, 0.505]} rotation-x={Math.PI / 2 + 0.35} scale={[1, 0.6, 1]}>
+                <circleGeometry args={[0.014, 16]} />
+              </mesh>
+            </group>
+          ))}
+          {/* Augen: tiefliegend, mit Ober- und Unterlid */}
           {[
             [eyeL, lidL, 1],
             [eyeR, lidR, -1],
           ].map(([eRef, lRef, s]) => (
-            <group key={s as number} position={[(s as number) * 0.165, 0.08, 0.385]}>
+            <group key={s as number} position={[(s as number) * EYE.x, EYE.y, EYE.z]}>
               <group ref={eRef as React.RefObject<THREE.Group>}>
-                <mesh material={mats.eyeWhite}>
-                  <sphereGeometry args={[0.074, 24, 18]} />
+                <mesh material={mats.sclera}>
+                  <sphereGeometry args={[EYE.r, 32, 24]} />
                 </mesh>
-                <mesh material={mats.iris} position={[0, 0, 0.0752]}>
-                  <circleGeometry args={[0.036, 28]} />
-                </mesh>
-                <mesh material={mats.pupil} position={[0, 0, 0.0758]}>
-                  <circleGeometry args={[0.017, 20]} />
-                </mesh>
-                <mesh material={mats.shine} position={[0.012, 0.013, 0.0764]}>
-                  <circleGeometry args={[0.0065, 10]} />
+                <mesh geometry={geo.iris} material={mats.irisTex} />
+                <mesh material={mats.shine} position={[0.007, 0.008, EYE.r + 0.0012]}>
+                  <circleGeometry args={[0.003, 10]} />
                 </mesh>
               </group>
-              <mesh ref={lRef as React.RefObject<THREE.Mesh>} geometry={geo.lid} material={mats.skin} rotation-x={-0.95} />
+              <mesh ref={lRef as React.RefObject<THREE.Mesh>} geometry={geo.lid} material={mats.lid} rotation-x={-0.32}>
+                <mesh geometry={geo.lash} material={mats.lash} rotation-x={Math.PI / 2} />
+              </mesh>
+              <mesh geometry={geo.lidLow} material={mats.lid} rotation-x={0.42} />
             </group>
           ))}
           <group ref={browL}>
@@ -407,9 +433,9 @@ export function Santa() {
           </group>
           {/* Brille, tief auf der Nase – Santa schaut darüber */}
           {[1, -1].map((s) => (
-            <group key={`g${s}`} position={[s * 0.168, -0.04, 0.54]} rotation={[-0.08, s * 0.12, 0]}>
-              <mesh geometry={geo.rim} material={mats.gold} scale={[1.15, 0.78, 1]} />
-              <mesh geometry={geo.lens} material={mats.lens} scale={[1.15, 0.78, 1]} />
+            <group key={`g${s}`} position={[s * 0.15, -0.006, 0.522]} rotation={[-0.12, s * 0.16, 0]}>
+              <mesh geometry={geo.rim} material={mats.gold} scale={[1, 0.62, 1]} />
+              <mesh geometry={geo.lens} material={mats.lens} scale={[1, 0.62, 1]} />
             </group>
           ))}
           <mesh geometry={geo.bridge} material={mats.gold} />
@@ -427,6 +453,7 @@ export function Santa() {
           <primitive object={fur.mustL} />
           <primitive object={fur.mustR} />
           <group ref={jaw}>
+            <mesh geometry={geo.lip} material={mats.lip} position={[0, -0.305, 0.458]} rotation-z={Math.PI / 2} scale={[1, 1, 0.8]} />
             <group position={[0, -0.22, 0.1]}>
               <primitive object={fur.beardMain} />
             </group>

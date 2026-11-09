@@ -79,7 +79,9 @@ const SPHERE = new THREE.SphereGeometry(1, 40, 28);
  * Fell-Ellipsoid (Bart, Haare, Kragen …). Länge und Dichte werden an die Grösse angepasst,
  * damit die Haare überall ähnlich fein aussehen.
  */
-export function furBlob(radii: [number, number, number], opts: { length?: number; spacing?: number; droop?: number; color?: string } = {}) {
+type FurOpts = { length?: number; spacing?: number; droop?: number; color?: string; curl?: number; tint?: number };
+
+export function furBlob(radii: [number, number, number], opts: FurOpts = {}) {
   const [rx, ry, rz] = radii;
   const avg = (rx + ry + rz) / 3;
   const spacing = opts.spacing ?? 0.0075;
@@ -89,6 +91,8 @@ export function furBlob(radii: [number, number, number], opts: { length?: number
     shells: QUALITY.furShells,
     droop: opts.droop ?? 0.5,
     color: opts.color ?? palette.fur,
+    curl: opts.curl,
+    tint: opts.tint,
   });
   const mesh = makeFurMesh(SPHERE, mat, QUALITY.furShells);
   mesh.scale.set(rx, ry, rz);
@@ -99,7 +103,7 @@ export function furBlob(radii: [number, number, number], opts: { length?: number
 export function furTube(
   points: [number, number, number][],
   radius: number,
-  opts: { length?: number; spacing?: number; droop?: number; color?: string } = {},
+  opts: FurOpts = {},
 ) {
   const geo = tubeGeometry(points, radius, 64, 14);
   const curve = new THREE.CatmullRomCurve3(points.map((p) => new THREE.Vector3(...p)));
@@ -111,6 +115,8 @@ export function furTube(
     shells: QUALITY.furShells,
     droop: opts.droop ?? 0.3,
     color: opts.color ?? palette.fur,
+    curl: opts.curl,
+    tint: opts.tint,
   });
   return makeFurMesh(geo, mat, QUALITY.furShells);
 }
