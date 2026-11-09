@@ -3,6 +3,9 @@ import { easing } from 'maath';
 import { useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { isTouch, settleMode, slowmo } from '../config';
+import { SANTA_POS } from '../santa/Santa';
+import { santaRuntime } from '../santa/santaRuntime';
+import { useSanta } from '../santa/santaStore';
 import { useBook } from '../store';
 import { H, HC, W, WC } from './book/geometry';
 import { runtime } from './runtime';
@@ -14,6 +17,7 @@ const INTRO_LOOK = new THREE.Vector3(-0.55, 0.42, -2.2);
 /** Platz, den die Bedienelemente oben/unten belegen (px) */
 const UI_TOP = 66;
 const STAMP_Y = (0.5 - STAMP.cy / PH) * H;
+const SANTA_DIR = new THREE.Vector3(0.16, 0.05, 1).normalize();
 
 /** Kamerafahrt: Raum-Totale → Buch → (beim Verkünden) Nahaufnahme des Urteils */
 export function CameraRig() {
@@ -31,7 +35,15 @@ export function CameraRig() {
     const fit = (w: number, h: number) => Math.max(w / 2 / tanH, h / 2 / tanV);
     const book = runtime.book;
 
-    if (st.page === 0 || !book) {
+    if (useSanta.getState().mode === 'santa') {
+      // Santa-Modus: Brustbild wie auf dem Foto, beim Vorlesen etwas näher
+      const reading = santaRuntime.pose === 'read';
+      const portrait = aspect < 0.9;
+      tmp.target.set(portrait ? 0 : -0.25, reading ? 2.2 : 2.3, SANTA_POS.z + 0.5);
+      const w = portrait ? 3.0 : 4.4;
+      const h = reading ? 3.7 : 4.3;
+      tmp.pos.copy(tmp.target).addScaledVector(SANTA_DIR, THREE.MathUtils.clamp(fit(w, h), 4.2, 15));
+    } else if (st.page === 0 || !book) {
       if (aspect < 0.9) {
         tmp.target.set(0.15, 0.62, -0.6);
         tmp.pos.copy(tmp.target).addScaledVector(INTRO_DIR, THREE.MathUtils.clamp(fit(3.4, 5.2), 5.5, 13));
@@ -70,13 +82,18 @@ export function CameraRig() {
       tmp.pos.copy(tmp.target).addScaledVector(VIEW_DIR, dist);
     }
 
+    if (runtime.camOverride) {
+      tmp.pos.set(...runtime.camOverride.pos);
+      tmp.target.set(...runtime.camOverride.target);
+    }
+
     if (!isTouch) {
       tmp.pos.x += state.pointer.x * 0.16;
       tmp.pos.y += state.pointer.y * 0.09;
     }
     tmp.pos.y += Math.sin(state.clock.elapsedTime * 0.45) * 0.02;
 
-    const intro = st.page === 0;
+    const intro = st.page === 0 && useSanta.getState().mode !== 'santa';
     easing.damp3(camera.position, tmp.pos, intro ? 1.0 : 0.7, dt);
     easing.damp3(look.current, tmp.target, intro ? 0.9 : 0.55, dt);
     camera.lookAt(look.current);
