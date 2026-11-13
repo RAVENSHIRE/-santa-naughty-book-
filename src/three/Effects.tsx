@@ -5,7 +5,7 @@ import { useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { QUALITY } from '../config';
 import { runtime } from './runtime';
-import { SANTA_HEAD } from '../santa/Santa';
+import { CLAUS_HEAD as SANTA_HEAD } from '../santa/MrsClaus';
 import { useSanta } from '../santa/santaStore';
 
 /** Glühen (Feuer, Gold), Tiefenunschärfe wie auf dem Foto, Vignette, Filmic-Tonemapping */

@@ -2,8 +2,8 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { easing } from 'maath';
 import { useMemo, useRef } from 'react';
 import * as THREE from 'three';
-import { isTouch, settleMode, slowmo } from '../config';
-import { SANTA_HEAD, SANTA_POS } from '../santa/Santa';
+import { isTouch, settleMode } from '../config';
+import { CLAUS_HEAD as SANTA_HEAD, CLAUS_POS as SANTA_POS } from '../santa/MrsClaus';
 import { santaRuntime } from '../santa/santaRuntime';
 import { useSanta } from '../santa/santaStore';
 import { useBook } from '../store';
@@ -78,7 +78,7 @@ export function CameraRig() {
     } else {
       const now = performance.now();
       const r = st.reveal;
-      const revealing = r.phase === 'suspense' || r.phase === 'slam' || (r.phase === 'done' && now - r.t0 < 1500 * slowmo);
+      const revealing = r.phase === 'suspense' || r.phase === 'slam' || (r.phase === 'done' && now - r.t0 < 1500);
       const onGuest = st.page >= 2 && st.page <= st.guests.length + 1;
       let fx = 0;
       let fy = 0;

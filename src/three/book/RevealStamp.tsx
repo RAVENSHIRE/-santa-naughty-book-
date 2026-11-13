@@ -1,8 +1,8 @@
 import { useFrame } from '@react-three/fiber';
 import { useMemo, useRef } from 'react';
 import * as THREE from 'three';
-import { slowmo } from '../../config';
-import { STRINGS } from '../../i18n';
+
+import { STRINGS } from '../../strings';
 import { useBook } from '../../store';
 import { toTexture } from '../tex/canvas';
 import { stampCanvas } from '../tex/draw2d';
@@ -72,7 +72,7 @@ export function RevealStamp() {
     const g = group.current;
     const pl = plane.current;
     if (!g || !pl) return;
-    const dt = Math.min(delta, 1 / 30) / slowmo;
+    const dt = Math.min(delta, 1 / 30);
     const now = performance.now();
     const guest = st.guests.find((x) => x.id === st.reveal.guestId);
     const phase = st.reveal.phase;
@@ -82,7 +82,7 @@ export function RevealStamp() {
 
     // Stempel-Textur passend zum Gast vorbereiten
     if (guest) {
-      const s = STRINGS[st.locale];
+      const s = STRINGS;
       const stp = stampFor(guest, s);
       const key = `${stp.text}|${stp.color}`;
       if (current.current.key !== key) {
@@ -100,13 +100,13 @@ export function RevealStamp() {
     let scale = 1;
     if (phase !== 'done') fadeFrom.current = -1;
     if (phase === 'slam' && guest) {
-      const u = Math.min(1, (now - st.reveal.t0) / (380 * slowmo));
+      const u = Math.min(1, (now - st.reveal.t0) / (380));
       const e = u * u * u;
       lift = (1 - e) * 0.55;
       scale = 1 + (1 - e) * 0.9;
       opacity = Math.min(1, u * 2.2);
     } else if (phase === 'done' && guest) {
-      const age = (now - st.reveal.t0) / slowmo;
+      const age = (now - st.reveal.t0);
       // erst ausblenden, wenn der Stempel in der Seitentextur angekommen ist
       const baked = runtime.rightPageKey.includes('"REVEALED"');
       if (!baked) fadeFrom.current = -1;
@@ -137,7 +137,7 @@ export function RevealStamp() {
         c.settled = false;
       }
     }
-    const age = (state.clock.elapsedTime - parts.started) / slowmo;
+    const age = (state.clock.elapsedTime - parts.started);
     const active = age >= 0 && age < 3.6;
     const cm = confetti.current;
     const km = coal.current;

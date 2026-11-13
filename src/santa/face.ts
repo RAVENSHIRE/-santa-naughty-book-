@@ -16,7 +16,9 @@ type V3 = [number, number, number];
 const bump = (p: THREE.Vector3, c: V3, s: V3) =>
   Math.exp(-(((p.x - c[0]) / s[0]) ** 2 + ((p.y - c[1]) / s[1]) ** 2 + ((p.z - c[2]) / s[2]) ** 2));
 
-export function headGeometry() {
+/** Kopfform. feminine = 1 → weicher: flacher Brauenbogen, feinere Nase, Kinn und schmaler Kiefer */
+export function headGeometry(feminine = 0) {
+  const m = 1 - feminine;
   const g = new THREE.SphereGeometry(0.5, 160, 120);
   g.scale(HS.x, HS.y, HS.z);
   const pos = g.attributes.position as THREE.BufferAttribute;
@@ -28,19 +30,47 @@ export function headGeometry() {
     let d = 0;
     for (const s of [1, -1]) {
       d -= 0.05 * bump(v, [s * EYE.x, EYE.y, 0.44], [0.075, 0.05, 0.14]); // Augenhöhle
-      d += 0.024 * bump(v, [s * 0.16, 0.158, 0.43], [0.11, 0.034, 0.14]); // Brauenbogen
+      d += (0.01 + 0.014 * m) * bump(v, [s * 0.16, 0.158, 0.43], [0.11, 0.034, 0.14]); // Brauenbogen
       d += 0.02 * bump(v, [s * 0.25, -0.02, 0.38], [0.09, 0.06, 0.14]); // Wangenknochen
-      d += 0.016 * bump(v, [s * 0.165, 0.0, 0.44], [0.07, 0.032, 0.12]); // Tränensäcke
+      d += (0.007 + 0.009 * m) * bump(v, [s * 0.165, 0.0, 0.44], [0.07, 0.032, 0.12]); // Tränensäcke
+      d -= 0.035 * feminine * bump(v, [s * 0.3, -0.27, 0.22], [0.12, 0.14, 0.22]); // schmaler Kiefer
       d += 0.022 * bump(v, [s * 0.2, -0.12, 0.42], [0.09, 0.07, 0.12]); // runde Wangen
       d -= 0.016 * bump(v, [s * 0.38, 0.15, 0.2], [0.1, 0.1, 0.15]); // Schläfen
     }
-    d += 0.03 * bump(v, [0, 0.05, 0.47], [0.045, 0.09, 0.12]); // Nasenwurzel
+    d += (0.012 + 0.018 * m) * bump(v, [0, 0.05, 0.47], [0.045, 0.09, 0.12]); // Nasenwurzel
+    d += 0.022 * feminine * bump(v, [0, -0.38, 0.33], [0.1, 0.07, 0.14]); // Kinn
+    d -= 0.012 * feminine * bump(v, [0, -0.31, 0.4], [0.07, 0.025, 0.1]); // Kinnfalte unter der Unterlippe
     if (v.z > 0) d -= 0.02 * Math.min(1, v.z / 0.48) ** 4; // flacheres Gesicht
     v.addScaledVector(n, d);
+    // weibliche Kopfform: Unterkiefer läuft zum Kinn hin schmal zu
+    if (feminine && v.y < -0.05) {
+      const k = THREE.MathUtils.smoothstep(-v.y, 0.05, 0.5);
+      v.x *= 1 - 0.24 * feminine * k;
+      v.z *= 1 - 0.06 * feminine * k;
+    }
+    // kürzeres Untergesicht
+    if (feminine && v.y < -0.15) v.y = -0.15 + (v.y + 0.15) * (1 - 0.18 * feminine);
     pos.setXYZ(i, v.x, v.y, v.z);
   }
   g.computeVertexNormals();
   return g;
+}
+
+/** Vorderste Hautoberfläche (z) an Stelle x/y – um Lippen & Co. exakt aufzusetzen */
+export function frontZ(g: THREE.BufferGeometry, x: number, y: number) {
+  const pos = g.attributes.position as THREE.BufferAttribute;
+  let best = -1;
+  let z = 0;
+  for (let i = 0; i < pos.count; i++) {
+    const vz = pos.getZ(i);
+    if (vz <= 0) continue;
+    const d = (pos.getX(i) - x) ** 2 + (pos.getY(i) - y) ** 2;
+    if (best < 0 || d < best) {
+      best = d;
+      z = vz;
+    }
+  }
+  return z;
 }
 
 // ---------- Texturen ----------
@@ -94,12 +124,12 @@ for (let k = 0; k < 3; k++) {
 WRINKLES.push({ pts: [[0.018, 0.17], [0.014, 0.12]], w: 1.4, a: 0.25 });
 WRINKLES.push({ pts: [[-0.018, 0.17], [-0.014, 0.12]], w: 1.4, a: 0.25 });
 
-function strokeWrinkles(g: CanvasRenderingContext2D, color: (a: number) => string, widthScale: number) {
+function strokeWrinkles(g: CanvasRenderingContext2D, color: (a: number) => string, widthScale: number, strength = 1) {
   g.lineCap = 'round';
   g.lineJoin = 'round';
   for (const wr of WRINKLES) {
     const pts = wr.pts.map(([x, y]) => uvPx(x, y));
-    g.strokeStyle = color(wr.a);
+    g.strokeStyle = color(wr.a * strength);
     g.lineWidth = wr.w * widthScale;
     g.beginPath();
     g.moveTo(pts[0][0], pts[0][1]);
@@ -128,10 +158,10 @@ function blob(g: CanvasRenderingContext2D, x: number, y: number, r: number, rgba
 }
 
 /** Haut: Grundton, Fleckigkeit, Rötungen, Altersflecken, Poren, Falten */
-export function faceColorTexture() {
+export function faceColorTexture(wrinkles = 1, base = '#e2a88d', blush = 1) {
   const c = createCanvas(W, H);
   const g = get2d(c);
-  g.fillStyle = '#e2a88d';
+  g.fillStyle = base;
   g.fillRect(0, 0, W, H);
   g.globalAlpha = 0.38;
   g.drawImage(cached('face-mottle', () => valueNoise(256, 12, 77, 4, [192, 116, 98], [246, 204, 182], 1.3)), 0, 0, W, H);
@@ -139,19 +169,19 @@ export function faceColorTexture() {
   g.drawImage(cached('face-mottle-fine', () => valueNoise(256, 48, 13, 2, [170, 96, 86], [250, 214, 196], 1.1)), 0, 0, W, H);
   g.globalAlpha = 1;
   for (const s of [1, -1]) {
-    blob(g, s * 0.22, -0.07, 0.13, [214, 84, 76, 0.5]); // rote Wangen
-    blob(g, s * 0.24, -0.03, 0.06, [200, 70, 70, 0.25]); // Äderchen
+    blob(g, s * 0.22, -0.07, 0.13, [214, 84, 76, 0.5 * blush]); // rote Wangen
+    blob(g, s * 0.24, -0.03, 0.06, [200, 70, 70, 0.25 * wrinkles]); // Äderchen
     blob(g, s * EYE.x, 0.01, 0.05, [140, 80, 100, 0.16], 0.6); // Schatten unter den Augen
     blob(g, s * 0.32, 0.14, 0.08, [205, 120, 100, 0.18]); // Schläfen
   }
   blob(g, 0, -0.02, 0.07, [210, 90, 80, 0.35]); // um die Nase
   blob(g, 0, 0.2, 0.18, [214, 120, 100, 0.15]); // Stirn
   const rnd = mulberry(5);
-  // Altersflecken
-  for (let i = 0; i < 18; i++) {
+  // Altersflecken (nur bei älterer Haut)
+  for (let i = 0; i < 18 * Math.min(1, wrinkles * 2); i++) {
     const x = (rnd() - 0.5) * 0.7;
     const y = 0.12 + rnd() * 0.16;
-    blob(g, x, y, 0.008 + rnd() * 0.012, [150, 92, 60, 0.18 + rnd() * 0.12]);
+    blob(g, x, y, 0.008 + rnd() * 0.012, [150, 92, 60, (0.18 + rnd() * 0.12) * wrinkles]);
   }
   // Poren / Unreinheiten
   for (let i = 0; i < 9000; i++) {
@@ -160,16 +190,16 @@ export function faceColorTexture() {
     g.fillStyle = rnd() > 0.5 ? 'rgba(120, 60, 50, 0.08)' : 'rgba(255, 230, 215, 0.06)';
     g.fillRect(x, y, 1.2, 1.2);
   }
-  strokeWrinkles(g, (a) => `rgba(130, 64, 52, ${a})`, 1);
+  strokeWrinkles(g, (a) => `rgba(130, 64, 52, ${a})`, 1, wrinkles);
   // Glanzlinie oberhalb der Falten (wirkt plastischer)
   g.translate(0, -1.2);
-  strokeWrinkles(g, (a) => `rgba(255, 220, 200, ${a * 0.35})`, 0.7);
+  strokeWrinkles(g, (a) => `rgba(255, 220, 200, ${a * 0.35})`, 0.7, wrinkles);
   g.setTransform(1, 0, 0, 1, 0, 0);
   return toTexture(c);
 }
 
 /** Normal-Map aus einer Höhenkarte (Falten = Rillen, Poren = feines Rauschen) */
-export function faceNormalTexture() {
+export function faceNormalTexture(wrinkles = 1) {
   const c = createCanvas(W, H);
   const g = get2d(c);
   g.fillStyle = 'rgb(128,128,128)';
@@ -177,7 +207,7 @@ export function faceNormalTexture() {
   g.globalAlpha = 0.5;
   g.drawImage(cached('face-pores', () => valueNoise(256, 96, 31, 2, [108, 108, 108], [148, 148, 148], 1)), 0, 0, W, H);
   g.globalAlpha = 1;
-  strokeWrinkles(g, (a) => `rgba(40,40,40,${Math.min(1, a * 2.6)})`, 1.8);
+  strokeWrinkles(g, (a) => `rgba(40,40,40,${Math.min(1, a * 2.6)})`, 1.8, wrinkles);
   const src = g.getImageData(0, 0, W, H).data;
   const out = g.createImageData(W, H);
   const h = (x: number, y: number) => src[(((y + H) % H) * W + ((x + W) % W)) * 4] / 255;
@@ -212,16 +242,16 @@ export function irisGeometry(irisR = 0.0255) {
 }
 
 /** Iris: blau-grau mit radialen Fasern, dunklem Rand und Pupille */
-export function irisTexture() {
+export function irisTexture(colors: [string, string, string] = ['#7d93a6', '#5f7f9f', '#3d5874']) {
   const S = 256;
   const c = createCanvas(S, S);
   const g = get2d(c);
   const m = S / 2;
   const base = g.createRadialGradient(m, m, 0, m, m, m);
   base.addColorStop(0, '#2b3d4f');
-  base.addColorStop(0.32, '#7d93a6');
-  base.addColorStop(0.62, '#5f7f9f');
-  base.addColorStop(0.86, '#3d5874');
+  base.addColorStop(0.32, colors[0]);
+  base.addColorStop(0.62, colors[1]);
+  base.addColorStop(0.86, colors[2]);
   base.addColorStop(1, '#1b2633');
   g.fillStyle = base;
   g.fillRect(0, 0, S, S);

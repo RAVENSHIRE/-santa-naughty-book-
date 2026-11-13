@@ -6,53 +6,33 @@ import { cached, createCanvas, get2d, toTexture, valueNoise } from '../three/tex
 import { font } from '../three/tex/draw2d';
 import { parchmentBase } from '../three/tex/pageArt';
 
-/** Rumpf-Profil (Radius über Höhe) – ein ordentlicher Weihnachtsbauch */
-const PROFILE: [number, number][] = [
-  [0.001, -1.6],
-  [0.95, -1.55],
-  [1.08, -0.9],
-  [1.18, -0.2],
-  [1.22, 0.45],
-  [1.15, 1.05],
-  [1.02, 1.5],
-  [0.9, 1.85],
-  [0.7, 2.1],
-  [0.4, 2.3],
-  [0.001, 2.38],
-];
+/** Rumpf aus einem Profil (Radius über Höhe), vorne/hinten etwas flacher */
 export const BODY_DEPTH = 0.82;
 
-const profileCurve = new THREE.SplineCurve(PROFILE.map(([r, y]) => new THREE.Vector2(r, y)));
-const profilePts = profileCurve.getPoints(80);
-
-/** Radius des Rumpfs auf Höhe y */
-export function bodyRadius(y: number) {
-  for (let i = 1; i < profilePts.length; i++) {
-    const a = profilePts[i - 1];
-    const b = profilePts[i];
-    if ((y >= a.y && y <= b.y) || (y <= a.y && y >= b.y)) {
-      const t = (y - a.y) / (b.y - a.y || 1);
-      return a.x + (b.x - a.x) * t;
+export function profileBody(profile: [number, number][]) {
+  const pts = new THREE.SplineCurve(profile.map(([r, y]) => new THREE.Vector2(r, y))).getPoints(80);
+  const radius = (y: number) => {
+    for (let i = 1; i < pts.length; i++) {
+      const a = pts[i - 1];
+      const b = pts[i];
+      if ((y >= a.y && y <= b.y) || (y <= a.y && y >= b.y)) return a.x + ((b.x - a.x) * (y - a.y)) / (b.y - a.y || 1);
     }
-  }
-  return 0;
+    return 0;
+  };
+  /** Ring/Band um den Rumpf zwischen y0 und y1 (Gürtel, Schürze …) */
+  const band = (y0: number, y1: number, offset: number, phiStart = 0, phiLength = Math.PI * 2) => {
+    const ring: THREE.Vector2[] = [];
+    for (let i = 0; i <= 8; i++) {
+      const y = y0 + ((y1 - y0) * i) / 8;
+      ring.push(new THREE.Vector2(radius(y) + offset, y));
+    }
+    return lathe(ring, phiStart, phiLength);
+  };
+  return { geometry: lathe(pts), radius, band };
 }
 
-export function bodyGeometry() {
-  const g = new THREE.LatheGeometry(profilePts, 64);
-  g.scale(1, 1, BODY_DEPTH);
-  g.computeVertexNormals();
-  return g;
-}
-
-/** Gürtel: schmaler Ring auf dem Bauch */
-export function beltGeometry(y0: number, y1: number) {
-  const pts: THREE.Vector2[] = [];
-  for (let i = 0; i <= 8; i++) {
-    const y = y0 + ((y1 - y0) * i) / 8;
-    pts.push(new THREE.Vector2(bodyRadius(y) + 0.018, y));
-  }
-  const g = new THREE.LatheGeometry(pts, 64);
+function lathe(pts: THREE.Vector2[], phiStart = 0, phiLength = Math.PI * 2) {
+  const g = new THREE.LatheGeometry(pts, 64, phiStart, phiLength);
   g.scale(1, 1, BODY_DEPTH);
   g.computeVertexNormals();
   return g;
@@ -61,16 +41,6 @@ export function beltGeometry(y0: number, y1: number) {
 export function tubeGeometry(points: [number, number, number][], radius: number, segs = 48, radial = 12) {
   const curve = new THREE.CatmullRomCurve3(points.map((p) => new THREE.Vector3(...p)));
   return new THREE.TubeGeometry(curve, segs, radius, radial, false);
-}
-
-/** Pelzkante vorne am Mantel, folgt der Bauchwölbung */
-export function frontTrimPoints(y0: number, y1: number): [number, number, number][] {
-  const pts: [number, number, number][] = [];
-  for (let i = 0; i <= 12; i++) {
-    const y = y0 + ((y1 - y0) * i) / 12;
-    pts.push([0, y, bodyRadius(y) * BODY_DEPTH + 0.02]);
-  }
-  return pts;
 }
 
 const SPHERE = new THREE.SphereGeometry(1, 40, 28);

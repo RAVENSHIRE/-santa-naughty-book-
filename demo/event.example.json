@@ -1,0 +1,31 @@
+{
+  "title": "Santa's Naughty Book",
+  "subtitle": "Team Nordpol",
+  "event": { "name": "Weihnachtsessen", "date": "Dezember", "santa": "Mrs. Claus" },
+  "greeting": "Ho ho ho! Grüezi mitenand! Heute lese ich aus dem goldenen Buch vor.",
+  "closing": "Was für ein Team! Danke, dass ihr alle so brav – oder so unterhaltsam – wart.",
+  "farewell": "Frohe Weihnachten! Ho ho ho!",
+  "guests": [
+    {
+      "name": "Rudi Rentier",
+      "title": "Der schnellste Kollege am Kaffeeautomaten",
+      "verdict": "nice",
+      "score": 20,
+      "nice": ["Bringt jeden Montag Gipfeli mit", "Repariert jeden Drucker"],
+      "naughty": ["Hat das letzte Stück Kuchen gegessen"],
+      "stories": [
+        "Lieber Rudi! Die Wichtel haben mir erzählt, dass du jeden Montag Gipfeli mitbringst.",
+        "Nur eines hat mich gewundert: Wo ist eigentlich das letzte Stück Kuchen geblieben?"
+      ]
+    },
+    {
+      "name": "Elfriede Elf",
+      "title": "Die Königin der Excel-Tabellen",
+      "verdict": "naughty",
+      "score": 75,
+      "nice": ["Kennt jede Formel auswendig"],
+      "naughty": ["Färbt alle Zellen rot", "Antwortet auf E-Mails nur mit «ok.»"],
+      "stories": ["Liebe Elfriede! In deinen Tabellen ist alles rot – sogar die Weihnachtsgrüsse."]
+    }
+  ]
+}

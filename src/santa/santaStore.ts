@@ -1,18 +1,8 @@
 import { create } from 'zustand';
+import type { Frame } from '../model';
 
 export type AppMode = 'santa' | 'book';
-export type SessionPhase =
-  | 'idle'
-  | 'starting'
-  | 'greeting'
-  | 'waiting'
-  | 'asking-name'
-  | 'reading'
-  | 'verdict'
-  | 'next'
-  | 'farewell'
-  | 'finished';
-
+export type SessionPhase = 'idle' | 'intro' | 'waiting' | 'name' | 'code' | 'reading' | 'verdict' | 'closing' | 'finale';
 export type DeviceState = 'off' | 'starting' | 'on' | 'denied' | 'unavailable' | 'error';
 
 export interface FaceBox {
@@ -23,58 +13,50 @@ export interface FaceBox {
   h: number;
 }
 
-interface SantaState {
+interface SessionState {
   mode: AppMode;
   phase: SessionPhase;
-  /** Was Santa gerade sagt */
+  /** Öffentlicher Rahmen aus event.json (null = Datei fehlt) */
+  frame: Frame | null;
+  /** Anzahl versiegelter Geschichten / davon schon vorgelesen */
+  total: number;
+  done: number;
   caption: string;
-  /** Was zuletzt verstanden wurde */
   heard: string;
+  /** Welche Eingabe die Oberfläche gerade anbietet */
+  input: 'name' | 'code' | null;
+  checking: boolean;
   camera: DeviceState;
   mic: DeviceState;
   detector: DeviceState;
-  speechIn: boolean;
-  speechOut: boolean;
   present: boolean;
   face: FaceBox | null;
-  /** Gast, der gerade dran ist */
-  currentGuestId: string | null;
-  /** Wartet der Ablauf auf einen Namen? (dann zeigt die UI Eingabe + Gäste-Chips) */
-  awaitingName: boolean;
-  /** Wartet der Ablauf auf eine Person? */
-  awaitingPerson: boolean;
-  /** Gäste, die in dieser Runde schon dran waren */
-  doneIds: string[];
-  error: string | null;
-  /** Filmische Elemente */
   letterbox: boolean;
   titleCard: { kicker?: string; title: string; sub?: string } | null;
-  voice: 'checking' | 'elevenlabs' | 'browser' | 'none';
+  error: string | null;
 
   setMode: (m: AppMode) => void;
-  patch: (p: Partial<SantaState>) => void;
+  patch: (p: Partial<SessionState>) => void;
 }
 
-export const useSanta = create<SantaState>()((set) => ({
+export const useSanta = create<SessionState>()((set) => ({
   mode: 'santa',
   phase: 'idle',
+  frame: null,
+  total: 0,
+  done: 0,
   caption: '',
   heard: '',
+  input: null,
+  checking: false,
   camera: 'off',
   mic: 'off',
   detector: 'off',
-  speechIn: false,
-  speechOut: false,
   present: false,
   face: null,
-  currentGuestId: null,
-  awaitingName: false,
-  awaitingPerson: false,
-  doneIds: [],
-  error: null,
   letterbox: false,
   titleCard: null,
-  voice: 'checking',
+  error: null,
   setMode: (mode) => set({ mode }),
   patch: (p) => set(p),
 }));

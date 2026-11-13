@@ -1,5 +1,5 @@
-import type { EventInfo, Guest } from '../../demoData';
-import type { Strings } from '../../i18n';
+import type { EventInfo, Guest } from '../../model';
+import type { Strings } from '../../strings';
 import { cached, createCanvas, get2d, grain, mulberry32, valueNoise } from './canvas';
 import {
   INK,

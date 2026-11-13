@@ -1,13 +1,13 @@
 import { useFrame } from '@react-three/fiber';
 import { useEffect } from 'react';
 import { sfx } from '../audio';
-import { slowmo } from '../config';
+
 import { useBook } from '../store';
 import { runtime } from './runtime';
 
-const SUSPENSE_MS = 1650 * slowmo;
-const SLAM_MS = 380 * slowmo;
-const DONE_MS = 2800 * slowmo;
+const SUSPENSE_MS = 1650;
+const SLAM_MS = 380;
+const DONE_MS = 2800;
 
 /** Ablauf beim Verkünden: Trommelwirbel → Stempel → Effekte */
 export function RevealDirector() {

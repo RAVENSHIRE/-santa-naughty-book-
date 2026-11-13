@@ -1,13 +1,6 @@
 node_modules
 dist
-dist-single
 *.log
 .DS_Store
-.voice-cache
-.env.local
-.env
-
-# Private Inhalte (Manuskript, Gästeliste) – nie committen
-public/content.local*.json
-# Vorgerenderte Stimme enthält das gesprochene Manuskript
-public/voice/
+# Klartext-Manuskript und Zauberwörter – NIE committen
+private/

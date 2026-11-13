@@ -1,5 +1,5 @@
 import type * as THREE from 'three';
-import type { Verdict } from '../demoData';
+import type { Verdict } from '../model';
 
 /** Geteilter, nicht-reaktiver Laufzeitzustand zwischen 3D-Komponenten */
 export const runtime = {

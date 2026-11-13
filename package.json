@@ -2,15 +2,13 @@
   "name": "santa-naughty-book",
   "private": true,
   "version": "1.0.0",
-  "description": "Santa's Naughty Book – ein live 3D-Buch für Gastgeber von Weihnachtsevents (React + Three.js)",
+  "description": "Mrs. Claus liest am Firmenanlass versiegelte Geschichten vor (React + Three.js)",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
-    "build:single": "tsc --noEmit && vite build --mode single",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit",
-    "voice:export": "node scripts/export-voice.mjs"
+    "seal": "node scripts/seal.mjs"
   },
   "dependencies": {
     "@fontsource/cinzel": "^5.3.0",
@@ -35,7 +33,6 @@
     "@types/three": "^0.187.0",
     "@vitejs/plugin-react": "^6.2.1",
     "typescript": "^7.0.2",
-    "vite": "^8.3.6",
-    "vite-plugin-singlefile": "^2.3.4"
+    "vite": "^8.3.6"
   }
 }

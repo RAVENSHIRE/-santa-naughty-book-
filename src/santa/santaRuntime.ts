@@ -22,9 +22,6 @@ export const santaRuntime = {
   /** Mikrofon-Pegel 0..1 */
   micLevel: 0,
   listening: false,
-  /** Lautstärke der ElevenLabs-Stimme (0..1) – treibt den Mund */
-  voiceLevel: 0,
-  voiceActive: false,
   shot: 'medium' as Shot,
   /** true = harter Schnitt statt Kamerafahrt (wird von der Kamera zurückgesetzt) */
   camCut: false,
