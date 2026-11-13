@@ -6,6 +6,7 @@ import { useSanta } from './santa/santaStore';
 import { useBook } from './store';
 import { STRINGS } from './strings';
 import { Experience } from './three/Experience';
+import { LiveAvatar } from './ui/LiveAvatar';
 import { Loader } from './ui/Loader';
 import { Stage } from './ui/Stage';
 import { loadEvent } from './vault';
@@ -63,6 +64,7 @@ export default function App() {
       <div className="scene-wrap">
         <Experience />
       </div>
+      <LiveAvatar />
       <Stage />
       <Loader />
     </div>

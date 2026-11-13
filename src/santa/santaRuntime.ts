@@ -1,4 +1,10 @@
-/** Posen des Avatars */
+import * as THREE from 'three';
+
+/** Platz der (früheren) Figur hinter dem Tisch – Bezugspunkt für die Raumkamera */
+export const SANTA_POS = new THREE.Vector3(0, 0, -2.85);
+export const SANTA_HEAD = new THREE.Vector3(0, 2.78, -2.74);
+
+/** Posen (heute nur noch für Gesten-Timing genutzt) */
 export type SantaPose = 'idle' | 'wave' | 'read' | 'think' | 'present';
 export type SantaGesture = 'nod' | 'shake' | 'laugh' | 'surprise';
 /** Kameraeinstellungen für die filmische Storyline */

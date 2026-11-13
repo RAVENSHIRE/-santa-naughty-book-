@@ -1,6 +1,6 @@
 # Santa's Naughty Book – Mrs. Claus
 
-Mrs. Claus begrüsst die Gäste in einem 3D-Weihnachtszimmer. Wer vor die Kamera tritt, nennt seinen Namen und sein **Zauberwort** – nur dann öffnet sich seine Geschichte im Buch. Am Schluss blättert das Buch alle 2 Minuten von selbst um.
+Mrs. Claus begrüsst die Gäste als Live-Avatar: ein Foto, das im Browser lebendig wird (Atmen, Kopfbewegung, Blinzeln, Mund zur Stimme). Für Buch und Stempel schneidet das Bild in ein 3D-Weihnachtszimmer. Wer vor die Kamera tritt, nennt seinen Namen und sein **Zauberwort** – nur dann öffnet sich seine Geschichte im Buch. Am Schluss blättert das Buch alle 2 Minuten von selbst um.
 
 ## Datenschutz
 
@@ -21,6 +21,10 @@ Mrs. Claus begrüsst die Gäste in einem 3D-Weihnachtszimmer. Wer vor die Kamera
    - schreibt `private/zugangscodes.csv` (Name;Zauberwort – jedem nur sein eigenes geben),
    - merkt sich die Codes in `private/codes.json`, damit ein erneuter Lauf sie beibehält.
 4. `public/event.json` committen und pushen → Vercel baut neu.
+
+## Avatar austauschen
+
+`public/avatar/mrs-claus.jpg` (16:9, z. B. 1920×1080) ersetzen und in `src/ui/LiveAvatar.tsx` die Landmarken (`FACE`: Augen, Lippenlinie, Kinn) in Bild-Koordinaten (0..1, y nach oben) anpassen.
 
 ## Entwickeln
 

@@ -3,7 +3,7 @@ import { easing } from 'maath';
 import { useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { isTouch, settleMode } from '../config';
-import { CLAUS_HEAD as SANTA_HEAD, CLAUS_POS as SANTA_POS } from '../santa/MrsClaus';
+import { SANTA_HEAD, SANTA_POS } from '../santa/santaRuntime';
 import { santaRuntime } from '../santa/santaRuntime';
 import { useSanta } from '../santa/santaStore';
 import { useBook } from '../store';

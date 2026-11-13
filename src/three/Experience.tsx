@@ -1,7 +1,6 @@
 import { Environment, Lightformer } from '@react-three/drei';
 import { Canvas } from '@react-three/fiber';
 import { captureMode, QUALITY } from '../config';
-import { MrsClaus } from '../santa/MrsClaus';
 import { Book } from './book/Book';
 import { CameraRig } from './CameraRig';
 import { Effects } from './Effects';
@@ -41,7 +40,6 @@ export function Experience() {
       <Desk>
         <Book />
       </Desk>
-      <MrsClaus />
       <CameraRig />
       <RevealDirector />
       <Effects />
