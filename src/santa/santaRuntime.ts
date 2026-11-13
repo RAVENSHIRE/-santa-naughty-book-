@@ -26,7 +26,6 @@ export const santaRuntime = {
   look: { x: 0, y: 0 },
   hasPerson: false,
   /** Mikrofon-Pegel 0..1 */
-  micLevel: 0,
   listening: false,
   shot: 'medium' as Shot,
   /** true = harter Schnitt statt Kamerafahrt (wird von der Kamera zurückgesetzt) */

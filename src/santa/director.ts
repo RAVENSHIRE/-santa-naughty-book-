@@ -214,7 +214,7 @@ class Director {
       const name = heard.length ? extractName(heard[0]) : '';
       if (name) {
         gesture('nod');
-        await this.say(g, LINES.hello(name));
+        await this.say(g, LINES.hello);
       }
 
       // Zauberwort

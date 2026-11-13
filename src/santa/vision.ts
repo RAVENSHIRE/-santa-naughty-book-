@@ -41,9 +41,6 @@ class Vision {
   private hits = 0;
   private misses = 0;
   private listeners = new Set<Listener>();
-  private audioCtx: AudioContext | null = null;
-  private analyser: AnalyserNode | null = null;
-  private levelBuf: Float32Array<ArrayBuffer> | null = null;
   present = false;
 
   constructor() {
@@ -107,7 +104,12 @@ class Vision {
       }
       void this.startDetector();
     }
-    if (this.stream?.getAudioTracks().length) this.startLevel(this.stream);
+    // Mikrofon nur für die Erlaubnis öffnen und sofort wieder freigeben: Ein dauerhaft offenes
+    // Mikrofon schaltet Windows/Headsets in den Telefonmodus und dämpft die Stimme stark.
+    this.stream?.getAudioTracks().forEach((t) => {
+      t.stop();
+      this.stream?.removeTrack(t);
+    });
   }
 
   private async startDetector() {
@@ -178,31 +180,6 @@ class Vision {
     if (was !== this.present) this.listeners.forEach((l) => l(this.present));
   }
 
-  private startLevel(stream: MediaStream) {
-    try {
-      const Ctor = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-      if (!Ctor) return;
-      this.audioCtx = new Ctor();
-      const src = this.audioCtx.createMediaStreamSource(new MediaStream(stream.getAudioTracks()));
-      this.analyser = this.audioCtx.createAnalyser();
-      this.analyser.fftSize = 512;
-      src.connect(this.analyser);
-      this.levelBuf = new Float32Array(new ArrayBuffer(this.analyser.fftSize * 4));
-      const tick = () => {
-        if (!this.analyser || !this.levelBuf) return;
-        this.analyser.getFloatTimeDomainData(this.levelBuf);
-        let sum = 0;
-        for (let i = 0; i < this.levelBuf.length; i++) sum += this.levelBuf[i] * this.levelBuf[i];
-        const rms = Math.sqrt(sum / this.levelBuf.length);
-        santaRuntime.micLevel = Math.min(1, rms * 6);
-        requestAnimationFrame(tick);
-      };
-      tick();
-    } catch {
-      /* kein Pegel – egal */
-    }
-  }
-
   /** Manuell melden, dass jemand da ist (ohne Kamera) */
   forcePresent() {
     const was = this.present;
@@ -221,14 +198,10 @@ class Vision {
     this.stream?.getTracks().forEach((t) => t.stop());
     this.stream = null;
     this.video.srcObject = null;
-    void this.audioCtx?.close().catch(() => {});
-    this.audioCtx = null;
-    this.analyser = null;
     this.present = false;
     this.hits = 0;
     this.misses = 0;
     santaRuntime.hasPerson = false;
-    santaRuntime.micLevel = 0;
     useSanta.getState().patch({ camera: 'off', mic: 'off', detector: 'off', present: false, face: null });
   }
 }

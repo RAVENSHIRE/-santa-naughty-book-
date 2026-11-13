@@ -1,0 +1,23 @@
+{
+  "static": {
+    "greeting": "Ho ho ho! Grüezi mitenand! Ich bin Mrs. Claus, und heute lese ich aus dem goldenen Buch vor.",
+    "waitFirst": "Wer möchte als Erstes zu mir kommen? Stell dich einfach vor die Kamera.",
+    "waitNext": "Wer möchte als Nächstes zu mir kommen? Stell dich einfach vor die Kamera.",
+    "askName": "Grüezi! Wie heisst du?",
+    "againName": "Das habe ich nicht ganz verstanden. Sag mir bitte noch einmal deinen Namen.",
+    "hello": "Schön, dass du da bist!",
+    "askCode": "Und jetzt verrat mir dein Zauberwort. Beide Wörter, bitte.",
+    "wrongCode": "Hmm, dieses Zauberwort öffnet mein Buch nicht. Versuch es bitte noch einmal.",
+    "giveUp": "Leider bleibt das Buch zu. Komm später noch einmal zu mir.",
+    "verdictNice": "Brav! Ho ho ho, dafür gibt es ein Geschenk.",
+    "verdictNaughty": "Unartig! Aber keine Sorge: Ein bisschen Kohle hält im Winter schön warm.",
+    "verdictUndecided": "Hmm, das ist knapp. Das entscheide ich nächstes Jahr!",
+    "allDone": "Jetzt habe ich alle Geschichten vorgelesen.",
+    "farewell": "Frohe Weihnachten! Ho ho ho!"
+  },
+  "named": {
+    "found": "Da bist du ja, {name}! Hier steht deine Geschichte.",
+    "already": "{name}, deine Geschichte habe ich heute schon vorgelesen!",
+    "verdictIntro": "Und jetzt, {name}: das Urteil von Mrs. Claus."
+  }
+}

@@ -1,26 +1,18 @@
 import type { Verdict } from '../model';
 
-/** Was Mrs. Claus zwischen den Geschichten sagt (Hochdeutsch – passt zur lokalen Schweizer Stimme) */
+import TEXT from './lines.json';
+
+const named = (t: string) => (name: string) => t.replace('{name}', name);
+const S = TEXT.static;
+
+/** Was Mrs. Claus zwischen den Geschichten sagt. Die Texte stehen in lines.json,
+ *  damit scripts/voice.mjs genau dieselben Sätze vorab vertonen kann. */
 export const LINES = {
-  greeting: 'Ho ho ho! Grüezi mitenand! Ich bin Mrs. Claus, und heute lese ich aus dem goldenen Buch vor.',
-  waitFirst: 'Wer möchte als Erstes zu mir kommen? Stell dich einfach vor die Kamera.',
-  waitNext: 'Wer möchte als Nächstes zu mir kommen? Stell dich einfach vor die Kamera.',
-  askName: 'Grüezi! Wie heisst du?',
-  againName: 'Das habe ich nicht verstanden. Sag mir bitte noch einmal deinen Namen – oder tipp ihn ein.',
-  hello: (name: string) => `Schön, dich zu sehen, ${name}!`,
-  askCode: 'Nenn mir jetzt dein Zauberwort – beide Wörter.',
-  wrongCode: 'Hmm, dieses Zauberwort öffnet mein Buch nicht. Versuch es bitte noch einmal.',
-  giveUp: 'Leider bleibt das Buch zu. Komm später noch einmal zu mir.',
-  already: (name: string) => `${name}, deine Geschichte habe ich heute schon vorgelesen!`,
-  found: (name: string) => `Da bist du ja, ${name}! Hier steht deine Geschichte.`,
-  verdictIntro: (name: string) => `Und jetzt, ${name}: das Urteil von Mrs. Claus …`,
-  verdict: {
-    nice: 'Brav! Ho ho ho – dafür gibt es ein Geschenk.',
-    naughty: 'Unartig! Aber keine Sorge: Ein bisschen Kohle hält im Winter schön warm.',
-    undecided: 'Hmm … das ist knapp. Das entscheide ich nächstes Jahr!',
-  } satisfies Record<Verdict, string>,
-  allDone: 'Jetzt habe ich alle Geschichten vorgelesen.',
-  farewell: 'Frohe Weihnachten! Ho ho ho!',
+  ...S,
+  found: named(TEXT.named.found),
+  already: named(TEXT.named.already),
+  verdictIntro: named(TEXT.named.verdictIntro),
+  verdict: { nice: S.verdictNice, naughty: S.verdictNaughty, undecided: S.verdictUndecided } satisfies Record<Verdict, string>,
   chapter: (n: number) => `Kapitel ${n}`,
   endTitle: 'Frohe Weihnachten',
 };
