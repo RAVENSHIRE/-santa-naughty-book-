@@ -6,7 +6,8 @@
 //   node scripts/voice.mjs --voice <id> [--model eleven_multilingual_v2] [--dry] [--force]
 //
 // API-Key: Datei %USERPROFILE%\santa-elevenlabs.txt (oder ELEVENLABS_KEY_FILE / ELEVENLABS_API_KEY)
-// Eingabe: private/event.json + private/codes.json (Klartext, nie committen), public/event.json (Salz)
+// Eingabe: private/codes.json (Name → Zauberwort, nie committen) + public/event.json.
+//          Die Geschichten werden mit den Zauberwörtern aus public/event.json entschlüsselt.
 // Ausgabe:
 //   public/voice/manifest.json, public/voice/p/<hash>.mp3   öffentliche Sätze und Rahmen
 //   public/voice/g/<id>.bin                                  pro Gast, mit dessen Zauberwort verschlüsselt
@@ -87,7 +88,6 @@ const SETTINGS = { stability: 0.5, similarity_boost: 0.8, style: 0.25, use_speak
 
 const TEXT = JSON.parse(readFileSync('src/santa/lines.json', 'utf8'));
 const pub = JSON.parse(readFileSync('public/event.json', 'utf8'));
-const priv = JSON.parse(readFileSync('private/event.json', 'utf8'));
 const codes = JSON.parse(readFileSync('private/codes.json', 'utf8'));
 
 /** Gleicher Schlüssel wie im Browser (src/santa/voicebank.ts) */
@@ -141,7 +141,7 @@ async function derive(code, salt) {
   const bits = new Uint8Array(
     await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt, iterations: pub.kdf.iterations }, base, 512),
   );
-  const key = await crypto.subtle.importKey('raw', bits.slice(0, 32), 'AES-GCM', false, ['encrypt']);
+  const key = await crypto.subtle.importKey('raw', bits.slice(0, 32), 'AES-GCM', false, ['encrypt', 'decrypt']);
   return { key, id: Buffer.from(bits.slice(32, 48)).toString('hex') };
 }
 const normalizeCode = (s) =>
@@ -165,11 +165,16 @@ man.model = MODEL;
 
 const todoPublic = [...new Set(publicTexts)].filter((t) => force || !man.clips[clipKey(t)] || !existsSync(`public/voice/${man.clips[clipKey(t)].f}`));
 const plans = [];
-for (const g of priv.guests) {
-  const code = codes[g.name];
-  if (!code) throw new Error(`Kein Zauberwort für ${g.name}`);
+for (const [name, code] of Object.entries(codes)) {
   const { key, id } = await derive(normalizeCode(code), Buffer.from(pub.kdf.salt, 'base64'));
-  if (!pub.entries.some((e) => e.id === id)) throw new Error(`${g.name}: passt nicht zu public/event.json – zuerst npm run seal`);
+  const entry = pub.entries.find((e) => e.id === id);
+  if (!entry) throw new Error(`${name}: Zauberwort passt nicht zu public/event.json – zuerst npm run seal`);
+  const plain = await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv: Buffer.from(entry.iv, 'base64') },
+    key,
+    Buffer.from(entry.data, 'base64'),
+  );
+  const g = JSON.parse(new TextDecoder().decode(plain));
   if (!force && existsSync(`public/voice/g/${id}.bin`)) continue;
   plans.push({ g, key, id, texts: guestTexts(g) });
 }

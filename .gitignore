@@ -4,3 +4,5 @@ dist
 .DS_Store
 # Klartext-Manuskript und Zauberwörter – NIE committen
 private/
+tsconfig.tsbuildinfo
+*.tsbuildinfo
