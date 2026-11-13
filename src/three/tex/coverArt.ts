@@ -1,5 +1,5 @@
-import type { EventInfo } from '../../demoData';
-import type { Strings } from '../../i18n';
+import type { EventInfo } from '../../model';
+import type { Strings } from '../../strings';
 import { cached, createCanvas, get2d, grain, valueNoise } from './canvas';
 import { cornerOrnament, fitFont, flourish, font, snowflake, spacedText, star } from './draw2d';
 import { CH, CW } from './pageArt';

@@ -122,6 +122,11 @@ class Sfx {
     this.ambienceGain = g;
   }
 
+  /** Für die Spieldose: Kontext + Ausgang (respektiert Ton aus) */
+  output() {
+    return this.ctx && this.master ? { ctx: this.ctx, out: this.master as AudioNode } : null;
+  }
+
   setAmbienceLevel(v: number) {
     if (this.ambienceGain && this.ctx) this.ambienceGain.gain.setTargetAtTime(v, this.ctx.currentTime, 0.4);
   }
@@ -203,4 +208,92 @@ class Sfx {
   }
 }
 
+// „Stille Nacht“ (Franz Xaver Gruber, 1818 – gemeinfrei) als Spieldose: [MIDI-Note, Achtel]
+const STILLE_NACHT: [number, number][] = [
+  [67, 3], [69, 1], [67, 2], [64, 6], [67, 3], [69, 1], [67, 2], [64, 6],
+  [74, 4], [74, 2], [71, 6], [72, 4], [72, 2], [67, 6],
+  [69, 4], [69, 2], [72, 3], [71, 1], [69, 2], [67, 3], [69, 1], [67, 2], [64, 6],
+  [69, 4], [69, 2], [72, 3], [71, 1], [69, 2], [67, 3], [69, 1], [67, 2], [64, 6],
+  [74, 4], [74, 2], [77, 3], [74, 1], [71, 2], [72, 6], [76, 6],
+  [72, 3], [67, 1], [64, 2], [67, 3], [65, 1], [62, 2], [60, 12],
+];
+
+class MusicBox {
+  private gain: GainNode | null = null;
+  private timer = 0;
+  private playing = false;
+  private level = 0.1;
+
+  constructor(private getCtx: () => { ctx: AudioContext; out: AudioNode } | null) {}
+
+  start() {
+    const c = this.getCtx();
+    if (!c || this.playing) return;
+    this.playing = true;
+    const { ctx, out } = c;
+    this.gain = ctx.createGain();
+    this.gain.gain.value = 0;
+    this.gain.gain.setTargetAtTime(this.level, ctx.currentTime, 1.2);
+    // leichtes Echo für Weite
+    const delay = ctx.createDelay(1);
+    delay.delayTime.value = 0.32;
+    const fb = ctx.createGain();
+    fb.gain.value = 0.28;
+    delay.connect(fb).connect(delay);
+    this.gain.connect(out);
+    this.gain.connect(delay);
+    delay.connect(out);
+    const eighth = 0.3;
+    let t = ctx.currentTime + 0.3;
+    const g = this.gain;
+    const schedule = () => {
+      if (!this.playing) return;
+      for (const [midi, len] of STILLE_NACHT) {
+        const f = 440 * Math.pow(2, (midi - 69) / 12);
+        for (const [mul, amp, dec] of [
+          [1, 0.5, 1.6],
+          [2, 0.18, 0.7],
+          [3.01, 0.06, 0.35],
+        ] as const) {
+          const o = ctx.createOscillator();
+          o.type = 'sine';
+          o.frequency.value = f * mul;
+          const e = ctx.createGain();
+          e.gain.setValueAtTime(0.0001, t);
+          e.gain.exponentialRampToValueAtTime(amp, t + 0.008);
+          e.gain.exponentialRampToValueAtTime(0.0001, t + dec);
+          o.connect(e).connect(g);
+          o.start(t);
+          o.stop(t + dec + 0.05);
+        }
+        t += len * eighth;
+      }
+      t += eighth * 6;
+      const wait = (t - ctx.currentTime - 2) * 1000;
+      this.timer = window.setTimeout(schedule, Math.max(500, wait));
+    };
+    schedule();
+  }
+
+  /** Lautstärke senken, während Santa spricht */
+  duck(on: boolean) {
+    const c = this.getCtx();
+    if (!c || !this.gain) return;
+    this.gain.gain.setTargetAtTime(on ? this.level * 0.35 : this.level, c.ctx.currentTime, 0.4);
+  }
+
+  stop() {
+    const c = this.getCtx();
+    this.playing = false;
+    clearTimeout(this.timer);
+    if (c && this.gain) {
+      const g = this.gain;
+      g.gain.setTargetAtTime(0, c.ctx.currentTime, 1.0);
+      setTimeout(() => g.disconnect(), 5000);
+    }
+    this.gain = null;
+  }
+}
+
 export const sfx = new Sfx();
+export const music = new MusicBox(() => sfx.output());

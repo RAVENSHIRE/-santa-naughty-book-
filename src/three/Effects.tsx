@@ -5,6 +5,8 @@ import { useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { QUALITY } from '../config';
 import { runtime } from './runtime';
+import { SANTA_HEAD } from '../santa/santaRuntime';
+import { useSanta } from '../santa/santaStore';
 
 /** Glühen (Feuer, Gold), Tiefenunschärfe wie auf dem Foto, Vignette, Filmic-Tonemapping */
 export function Effects() {
@@ -12,9 +14,14 @@ export function Effects() {
   const focus = useMemo(() => new THREE.Vector3(), []);
 
   useFrame(() => {
-    if (!runtime.book || !dof.current) return;
-    focus.set(runtime.coverT > 0.5 ? 0 : 0.6, 0, runtime.rightTopZ);
-    runtime.book.localToWorld(focus);
+    if (!dof.current) return;
+    if (useSanta.getState().mode === 'santa') {
+      focus.copy(SANTA_HEAD);
+    } else {
+      if (!runtime.book) return;
+      focus.set(runtime.coverT > 0.5 ? 0 : 0.6, 0, runtime.rightTopZ);
+      runtime.book.localToWorld(focus);
+    }
     dof.current.target = focus;
   });
 

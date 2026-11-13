@@ -2,9 +2,10 @@ import { useFrame, type ThreeEvent } from '@react-three/fiber';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { sfx } from '../../audio';
-import { QUALITY, slowmo } from '../../config';
+import { QUALITY } from '../../config';
 import { loadFonts } from '../../fonts';
-import { STRINGS } from '../../i18n';
+import { STRINGS } from '../../strings';
+import { useSanta } from '../../santa/santaStore';
 import { useBook } from '../../store';
 import { palette } from '../../theme';
 import { makeFurMaterial, makeFurMesh, makeVelvet } from '../materials';
@@ -74,7 +75,6 @@ const transparentZone = () => new THREE.MeshBasicMaterial({ transparent: true, o
 export function Book() {
   const guests = useBook((s) => s.guests);
   const event = useBook((s) => s.event);
-  const locale = useBook((s) => s.locale);
   const [fontsReady, setFontsReady] = useState(false);
 
   const bookGroup = useRef<THREE.Group>(null);
@@ -93,7 +93,7 @@ export function Book() {
   const fontsRef = useRef(false);
 
   const L = guests.length + 1;
-  const pageData = useMemo<PageData>(() => ({ event, guests, s: STRINGS[locale] }), [event, guests, locale]);
+  const pageData = useMemo<PageData>(() => ({ event, guests, s: STRINGS }), [event, guests]);
   const data = useDebounced(pageData, 160);
   const dataRef = useRef(data);
   dataRef.current = data;
@@ -161,7 +161,7 @@ export function Book() {
           draw(ctx);
           return toTexture(c, { srgb });
         };
-        const s = STRINGS[locale];
+        const s = STRINGS;
         const cd = { event, s };
         const pd: PageData = { event, guests: [], s };
         const color = mk(CW * sc, CH * sc, (ctx) => drawCoverFront(ctx, 'color', cd));
@@ -192,7 +192,7 @@ export function Book() {
       coverReady.current ? 300 : 0,
     );
     return () => clearTimeout(id);
-  }, [fontsReady, event, locale, res]);
+  }, [fontsReady, event, res]);
 
   // Blätter an Anzahl der Gäste anpassen
   useEffect(() => {
@@ -250,10 +250,10 @@ export function Book() {
       tw.from = tw.t;
       tw.to = it.target;
       tw.dir = it.target > tw.t ? 1 : -1;
-      tw.dur = (it.isCover ? 1.35 : leafDur) * slowmo;
+      tw.dur = (it.isCover ? 1.35 : leafDur);
       tw.start = t;
       tw.sounded = false;
-      t += (it.isCover ? (it.target === 1 ? 0.55 : 0.3) : stagger) * slowmo;
+      t += (it.isCover ? (it.target === 1 ? 0.55 : 0.3) : stagger);
     }
   };
 
@@ -358,6 +358,7 @@ export function Book() {
   const onZone = (side: 'left' | 'right') => (e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation();
     if (e.delta > 8) return;
+    if (useSanta.getState().mode === 'santa') return;
     sfx.unlock();
     const st = useBook.getState();
     if (st.reveal.phase === 'suspense' || st.reveal.phase === 'slam') return;
@@ -365,7 +366,7 @@ export function Book() {
     else st.prev();
   };
   const hover = (on: boolean) => () => {
-    document.body.style.cursor = on ? 'pointer' : '';
+    document.body.style.cursor = on && useSanta.getState().mode === 'book' ? 'pointer' : '';
   };
 
   return (

@@ -7,7 +7,6 @@ export const INK_SOFT = 'rgba(43, 26, 15, 0.72)';
 export const INK_RED = '#8c1217';
 export const INK_GREEN = '#235029';
 export const INK_AMBER = '#8a5a0c';
-export const INK_GOLD = '#8f6a1f';
 
 export const font = {
   title: (w: number, s: number) => `${w} ${s}px "Cinzel Decorative", "Cinzel", Georgia, serif`,

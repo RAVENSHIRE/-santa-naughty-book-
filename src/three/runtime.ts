@@ -1,5 +1,5 @@
 import type * as THREE from 'three';
-import type { Verdict } from '../demoData';
+import type { Verdict } from '../model';
 
 /** Geteilter, nicht-reaktiver Laufzeitzustand zwischen 3D-Komponenten */
 export const runtime = {
@@ -14,6 +14,8 @@ export const runtime = {
   impactVerdict: 'nice' as Verdict,
   /** Textur-Schlüssel der aktuell sichtbaren rechten Seite (zeigt, ob der Stempel schon eingezeichnet ist) */
   rightPageKey: '',
+  /** Nur für Tests: Kamera fest setzen */
+  camOverride: null as null | { pos: [number, number, number]; target: [number, number, number] },
   /** Fortschritt des Deckels (0 = zu, 1 = offen) */
   coverT: 0,
 };

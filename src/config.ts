@@ -32,39 +32,15 @@ export const QUALITY = {
   embers: lowQuality ? 40 : 90,
 };
 
-/** Für automatische Screenshots: Kamera-Dämpfung auch bei sehr wenigen FPS ausschwingen lassen (?settle) */
-export const settleMode = (() => {
+const devFlag = (name: string) => {
   try {
-    return new URLSearchParams(window.location.search).has('settle');
+    return import.meta.env.DEV && new URLSearchParams(window.location.search).has(name);
   } catch {
     return false;
   }
-})();
+};
 
-/** Zeitlupe fürs Umblättern (?slowmo=4) – nur zum Testen */
-export const slowmo = (() => {
-  try {
-    const v = Number(new URLSearchParams(window.location.search).get('slowmo'));
-    return v > 0 ? v : 1;
-  } catch {
-    return 1;
-  }
-})();
-
-/** Für automatische Tests: WebGL-Bild per canvas.toDataURL() abgreifbar (?capture) */
-export const captureMode = (() => {
-  try {
-    return new URLSearchParams(window.location.search).has('capture');
-  } catch {
-    return false;
-  }
-})();
-
-/** Debug-Ansicht der generierten Texturen: ?debug=textures */
-export const debugView = (() => {
-  try {
-    return new URLSearchParams(window.location.search).get('debug');
-  } catch {
-    return null;
-  }
-})();
+/** Nur im Dev-Server: Kamera-Dämpfung bei sehr wenigen FPS ausschwingen lassen (?settle) */
+export const settleMode = devFlag('settle');
+/** Nur im Dev-Server: WebGL-Bild per toDataURL abgreifbar, Stores an window (?capture) */
+export const captureMode = devFlag('capture');

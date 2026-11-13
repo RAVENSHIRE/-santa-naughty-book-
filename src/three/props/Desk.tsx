@@ -184,6 +184,10 @@ export function Desk({ children }: { children: ReactNode }) {
           <boxGeometry args={[0.22, legH, 0.22]} />
         </mesh>
       ))}
+      {/* Front-Blende: versteckt den Raum unter dem Tisch (und Santas Beine) */}
+      <mesh position={[0, -DESK.t - (legH - 0.2) / 2, DESK.d / 2 - 0.14]} material={woodMat} castShadow receiveShadow>
+        <boxGeometry args={[DESK.w - 0.3, legH - 0.2, 0.08]} />
+      </mesh>
       <mesh position={[0, 0.006, 0.25]} receiveShadow>
         <boxGeometry args={[3.9, 0.012, 2.5]} />
         <meshStandardMaterial map={tex.pad} roughness={0.75} />
