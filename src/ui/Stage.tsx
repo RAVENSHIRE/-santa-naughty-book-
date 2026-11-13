@@ -1,8 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { director } from '../santa/director';
 import { useSanta } from '../santa/santaStore';
 import { localVoices, primeSpeech, saveVoiceName, savedVoiceName, speak, sttSupported } from '../santa/speech';
-import { vision } from '../santa/vision';
 import { useBook } from '../store';
 
 function TitleCard() {
@@ -29,46 +28,34 @@ function TitleCard() {
   );
 }
 
-function CameraPreview() {
-  const ref = useRef<HTMLVideoElement>(null);
-  const camera = useSanta((s) => s.camera);
-  const present = useSanta((s) => s.present);
-  useEffect(() => {
-    const v = ref.current;
-    const stream = vision().video.srcObject;
-    if (v && stream && v.srcObject !== stream) {
-      v.srcObject = stream;
-      void v.play().catch(() => {});
-    }
-  }, [camera]);
-  if (camera !== 'on') return null;
-  return (
-    <div className={`cam ${present ? 'has-person' : ''}`}>
-      <video ref={ref} muted playsInline autoPlay />
-    </div>
-  );
-}
-
+/** Eingabe per Tastatur – standardmässig zugeklappt, solange das Mikrofon zuhört */
 function InputPanel() {
   const input = useSanta((s) => s.input);
   const heard = useSanta((s) => s.heard);
   const checking = useSanta((s) => s.checking);
+  const micOn = useSanta((s) => s.mic === 'on') && sttSupported();
   const [value, setValue] = useState('');
+  const [open, setOpen] = useState(false);
   useEffect(() => setValue(''), [input]);
-  if (checking) return <div className="panel">Mrs. Claus blättert im Buch …</div>;
+  if (checking) return <p className="heard">Mrs. Claus blättert im Buch …</p>;
   if (!input) return null;
-  const send = () => {
-    if (value.trim()) director.input(value.trim());
-  };
+  if (micOn && !open)
+    return (
+      <>
+        {heard && <p className="heard">„{input === 'code' ? '•••' : heard}“</p>}
+        <button className="ghost small" onClick={() => setOpen(true)}>
+          Tippen
+        </button>
+      </>
+    );
   return (
     <form
       className="panel"
       onSubmit={(e) => {
         e.preventDefault();
-        send();
+        if (value.trim()) director.input(value.trim());
       }}
     >
-      <label>{input === 'name' ? 'Dein Name' : 'Dein Zauberwort'}</label>
       <div className="row">
         <input
           autoFocus
@@ -76,11 +63,10 @@ function InputPanel() {
           autoComplete="off"
           value={value}
           onChange={(e) => setValue(e.target.value)}
-          placeholder={input === 'name' ? 'sagen oder tippen' : 'zwei Wörter – sagen oder tippen'}
+          placeholder={input === 'name' ? 'Dein Name' : 'Dein Zauberwort (zwei Wörter)'}
         />
         <button type="submit">OK</button>
       </div>
-      {heard && input === 'name' && <div className="heard">„{heard}“</div>}
     </form>
   );
 }
@@ -146,7 +132,14 @@ function StartPanel() {
           Sprache → Deutsch (Schweiz) → Sprachausgabe installieren.
         </p>
       )}
-      <button className="go" disabled={!frame || !ready} onClick={() => void director.start({ camera, mic })}>
+      <button
+        className="go"
+        disabled={!frame || !ready}
+        onClick={() => {
+          void document.documentElement.requestFullscreen?.().catch(() => {});
+          void director.start({ camera, mic });
+        }}
+      >
         Mrs. Claus starten
       </button>
       <p className="note">
@@ -163,11 +156,7 @@ export function Stage() {
   const caption = useSanta((s) => s.caption);
   const letterbox = useSanta((s) => s.letterbox);
   const titleCard = useSanta((s) => s.titleCard);
-  const done = useSanta((s) => s.done);
-  const total = useSanta((s) => s.total);
   const error = useSanta((s) => s.error);
-  const sound = useBook((s) => s.sound);
-  const toggleSound = useBook((s) => s.toggleSound);
   const running = phase !== 'idle' && phase !== 'finale';
 
   return (
@@ -176,24 +165,10 @@ export function Stage() {
         <span />
         <span />
       </div>
-      <div className="corner">
-        <button className="ghost" onClick={toggleSound}>{sound ? 'Ton an' : 'Ton aus'}</button>
-        <button
-          className="ghost"
-          onClick={() => (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen())}
-        >
-          Vollbild
-        </button>
-      </div>
-
       {phase === 'idle' && <StartPanel />}
       {running && <TitleCard />}
       {running && (
         <>
-          <div className={`status ${titleCard ? 'is-hidden' : ''}`}>
-            {done} von {total} Geschichten
-          </div>
-          <CameraPreview />
           <div className="bottom">
             {caption && !titleCard && <p className="caption">{caption}</p>}
             <InputPanel />

@@ -30,10 +30,8 @@ function useKeyboard() {
       if (el && (el.tagName === 'INPUT' || el.tagName === 'SELECT')) return;
       const { phase, mode } = useSanta.getState();
       const book = useBook.getState();
-      if (e.key === 'f' || e.key === 'F') {
-        if (document.fullscreenElement) void document.exitFullscreen();
-        else void document.documentElement.requestFullscreen?.();
-      } else if (mode === 'book' && ['ArrowRight', 'PageDown', ' '].includes(e.key)) book.next();
+      if (e.key === 'f' || e.key === 'F') void document.documentElement.requestFullscreen?.().catch(() => {});
+      else if (mode === 'book' && ['ArrowRight', 'PageDown', ' '].includes(e.key)) book.next();
       else if (mode === 'book' && ['ArrowLeft', 'PageUp'].includes(e.key)) book.prev();
       else if (phase !== 'idle' && phase !== 'finale' && e.key === ' ') director.skip();
       else if (phase !== 'idle' && (e.key === 'p' || e.key === 'P')) director.personHere();
@@ -41,8 +39,18 @@ function useKeyboard() {
       else return;
       e.preventDefault();
     };
+    // Immer Vollbild: Browser erlauben das nur nach einer Eingabe – also bei jeder Eingabe zurückholen
+    const keepFullscreen = () => {
+      if (!document.fullscreenElement && useSanta.getState().phase !== 'idle') void document.documentElement.requestFullscreen?.().catch(() => {});
+    };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener('pointerdown', keepFullscreen);
+    window.addEventListener('keydown', keepFullscreen);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('pointerdown', keepFullscreen);
+      window.removeEventListener('keydown', keepFullscreen);
+    };
   }, []);
 }
 

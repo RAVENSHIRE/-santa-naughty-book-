@@ -12,7 +12,6 @@ export interface BookState {
   event: EventInfo;
   /** Nur Gäste, die ihr Zauberwort genannt haben (Reihenfolge = Reihenfolge im Abend) */
   guests: Guest[];
-  sound: boolean;
   /** 0 = zu, 1 = Titelseite, 2..G+1 = Gast-Doppelseiten, G+2 = Bilanz */
   page: number;
   focus: Focus;
@@ -25,7 +24,6 @@ export interface BookState {
   setPage: (page: number, focus?: Focus) => void;
   setSinglePage: (v: boolean) => void;
   setReady: () => void;
-  toggleSound: () => void;
   setEvent: (e: EventInfo) => void;
   /** Fügt einen entschlüsselten Gast hinzu (idempotent über die id) und liefert seinen Index */
   addGuest: (g: Guest) => number;
@@ -47,7 +45,6 @@ const emptyEvent: EventInfo = { name: '', date: '', santa: 'Mrs. Claus' };
 export const useBook = create<BookState>()((set, get) => ({
   event: emptyEvent,
   guests: [],
-  sound: true,
   page: 0,
   focus: 'right',
   singlePage: false,
@@ -81,7 +78,6 @@ export const useBook = create<BookState>()((set, get) => ({
 
   setSinglePage: (v) => set({ singlePage: v }),
   setReady: () => set({ ready: true }),
-  toggleSound: () => set((s) => ({ sound: !s.sound })),
   setEvent: (event) => set({ event }),
 
   addGuest: (g) => {

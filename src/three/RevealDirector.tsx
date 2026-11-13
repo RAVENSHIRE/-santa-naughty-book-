@@ -12,9 +12,7 @@ const DONE_MS = 2800;
 /** Ablauf beim Verkünden: Trommelwirbel → Stempel → Effekte */
 export function RevealDirector() {
   useEffect(() => {
-    sfx.setEnabled(useBook.getState().sound);
     return useBook.subscribe((s, prev) => {
-      if (s.sound !== prev.sound) sfx.setEnabled(s.sound);
       if (s.reveal.phase !== prev.reveal.phase) {
         if (s.reveal.phase === 'suspense') {
           sfx.drumroll(SUSPENSE_MS / 1000);
