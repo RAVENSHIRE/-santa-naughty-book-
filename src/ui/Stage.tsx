@@ -4,6 +4,8 @@ import { useSanta } from '../santa/santaStore';
 import { LINES } from '../santa/lines';
 import { localVoices, primeSpeech, saveVoiceName, savedVoiceName, speak, sttSupported, voiceAudio } from '../santa/speech';
 import { clipFor } from '../santa/voicebank';
+import { liveAvailable } from '../santa/live';
+import { LIVE_VOICES } from '../santa/livePrompt';
 import { useBook } from '../store';
 
 function TitleCard() {
@@ -27,6 +29,35 @@ function TitleCard() {
       <div className="title-main">{shown.title}</div>
       {shown.sub && <div className="title-sub">{shown.sub}</div>}
     </div>
+  );
+}
+
+/** Live-Modus: Notfall-Eingabe per Tastatur an Mrs. Claus (zugeklappt) */
+function LiveInput() {
+  const checking = useSanta((s) => s.checking);
+  const [value, setValue] = useState('');
+  const [open, setOpen] = useState(false);
+  if (checking) return <p className="heard">Mrs. Claus blättert im Buch …</p>;
+  if (!open)
+    return (
+      <button className="ghost small" onClick={() => setOpen(true)}>
+        Tippen
+      </button>
+    );
+  return (
+    <form
+      className="panel"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (value.trim()) director.liveText(value.trim());
+        setValue('');
+      }}
+    >
+      <div className="row">
+        <input autoFocus type="text" autoComplete="off" value={value} onChange={(e) => setValue(e.target.value)} placeholder="Name oder Zauberwort" />
+        <button type="submit">OK</button>
+      </div>
+    </form>
   );
 }
 
@@ -88,6 +119,19 @@ function StartPanel() {
   }, [voice]);
   const ready = useBook((s) => s.ready);
   const recorded = useSanta((s) => s.recorded);
+  const [liveOk, setLiveOk] = useState<boolean | null>(null);
+  const [useLive, setUseLive] = useState(true);
+  const [liveVoice, setLiveVoice] = useState(() => {
+    try {
+      return localStorage.getItem('claus-live-voice') || LIVE_VOICES[0].id;
+    } catch {
+      return LIVE_VOICES[0].id;
+    }
+  });
+  useEffect(() => {
+    void liveAvailable().then(setLiveOk);
+  }, []);
+  const live = !!liveOk && useLive;
   const probe = async () => {
     primeSpeech();
     const clip = await clipFor(LINES.askName);
@@ -110,7 +154,32 @@ function StartPanel() {
           <input type="checkbox" checked={mic} disabled={!sttSupported()} onChange={(e) => setMic(e.target.checked)} /> Mikrofon
         </label>
       </div>
-      {recorded ? (
+      <div className="row">
+        <label>
+          <input type="checkbox" checked={live} disabled={!liveOk} onChange={(e) => setUseLive(e.target.checked)} /> Live-Gespräch (Gemini)
+        </label>
+        {live && (
+          <select
+            value={liveVoice}
+            onChange={(e) => {
+              setLiveVoice(e.target.value);
+              try {
+                localStorage.setItem('claus-live-voice', e.target.value);
+              } catch {
+                /* egal */
+              }
+            }}
+          >
+            {LIVE_VOICES.map((v) => (
+              <option key={v.id} value={v.id}>
+                {v.label}
+              </option>
+            ))}
+          </select>
+        )}
+      </div>
+      {liveOk === false && <p className="note">Live-Gespräch aus: In Vercel fehlt die Umgebungsvariable GEMINI_API_KEY.</p>}
+      {live ? null : recorded ? (
         <div className="row">
           <span>Stimme: Mrs. Claus (aufgenommen)</span>
           <button type="button" className="ghost" onClick={() => void probe()}>
@@ -153,7 +222,7 @@ function StartPanel() {
       <button
         className="go"
         disabled={!frame || !ready}
-        onClick={() => void director.start({ camera, mic })}
+        onClick={() => void (live ? director.startLive({ camera, mic, voice: liveVoice }) : director.start({ camera, mic }))}
       >
         Mrs. Claus starten
       </button>
@@ -173,6 +242,7 @@ export function Stage() {
   const letterbox = useSanta((s) => s.letterbox);
   const titleCard = useSanta((s) => s.titleCard);
   const error = useSanta((s) => s.error);
+  const live = useSanta((s) => s.live);
   const running = phase !== 'idle' && phase !== 'finale';
 
   return (
@@ -187,10 +257,10 @@ export function Stage() {
         <>
           <div className="bottom">
             {caption && !titleCard && <p className="caption">{caption}</p>}
-            <InputPanel />
+            {live ? <LiveInput /> : <InputPanel />}
             {error && <p className="warn">{error}</p>}
             <div className="controls">
-              <button onClick={director.skip}>Weiter ␣</button>
+              {!live && <button onClick={director.skip}>Weiter ␣</button>}
               <button onClick={director.personHere}>Person ist da P</button>
               <button onClick={director.end}>Abschied E</button>
             </div>

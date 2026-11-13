@@ -28,6 +28,8 @@ interface SessionState {
   checking: boolean;
   /** Vorab aufgenommene Stimme (public/voice) vorhanden */
   recorded: boolean;
+  /** Live-Gespräch mit Gemini läuft */
+  live: boolean;
   camera: DeviceState;
   mic: DeviceState;
   detector: DeviceState;
@@ -52,6 +54,7 @@ export const useSanta = create<SessionState>()((set) => ({
   input: null,
   checking: false,
   recorded: false,
+  live: false,
   camera: 'off',
   mic: 'off',
   detector: 'off',

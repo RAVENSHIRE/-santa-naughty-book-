@@ -3,6 +3,8 @@ import type { Guest } from '../model';
 import { useBook } from '../store';
 import { codeCandidates, forgetKeys, guestKey, unlock } from '../vault';
 import { extractName, LINES, sentences } from './lines';
+import { LiveSession } from './live';
+import { HINT, livePrompt } from './livePrompt';
 import { gesture, santaRuntime, setShot } from './santaRuntime';
 import { useSanta } from './santaStore';
 import { listen, primeSpeech, speak, stopListening, stopSpeaking, sttSupported, voiceAudio } from './speech';
@@ -30,6 +32,9 @@ class Director {
   private doneIds = new Set<string>();
   private flipTimer = 0;
   private unsubPresence: (() => void) | null = null;
+  private live: LiveSession | null = null;
+  private current: Guest | null = null;
+  private closingFrom = -1;
 
   private get s() {
     return useSanta.getState();
@@ -61,17 +66,24 @@ class Director {
   skip = () => this.emit({ kind: 'skip' });
   personHere = () => {
     vision().forcePresent();
-    this.emit({ kind: 'person' });
+    if (this.live) this.live.say(HINT.person);
+    else this.emit({ kind: 'person' });
   };
   end = () => {
     this.endRequested = true;
-    this.emit({ kind: 'end' });
+    if (this.live) this.live.say(HINT.end);
+    else this.emit({ kind: 'end' });
   };
   input = (text: string) => this.emit({ kind: 'input', text });
+  /** Live-Modus: getippter Text geht direkt an Mrs. Claus */
+  liveText = (text: string) => this.live?.say(text);
 
   /** Alles beenden und vergessen */
   stop() {
     this.gen++;
+    this.live?.stop();
+    this.live = null;
+    this.current = null;
     this.emit({ kind: 'abort' });
     clearInterval(this.flipTimer);
     stopSpeaking();
@@ -83,8 +95,157 @@ class Director {
     forgetGuestVoices();
     forgetKeys();
     this.doneIds.clear();
-    this.s.patch({ phase: 'idle', caption: '', heard: '', input: null, letterbox: false, titleCard: null, done: 0 });
+    this.s.patch({ phase: 'idle', caption: '', heard: '', input: null, letterbox: false, titleCard: null, done: 0, live: false });
     this.s.setMode('santa');
+  }
+
+  /**
+   * Live-Abend mit Gemini: Mrs. Claus führt frei durchs Gespräch.
+   * Das Buch (Zauberwort, Seite, Stempel) bleibt in der App; Gemini ruft es über Werkzeuge auf.
+   */
+  async startLive(opts: { camera: boolean; mic: boolean; voice: string }) {
+    const g = ++this.gen;
+    sfx.unlock();
+    this.endRequested = false;
+    this.doneIds.clear();
+    this.current = null;
+    this.closingFrom = -1;
+    useBook.getState().wipe();
+    const frame = this.s.frame;
+    if (frame) useBook.getState().setEvent(frame.event);
+    this.s.patch({ phase: 'intro', done: 0, error: null, caption: '', heard: '', input: null, live: true });
+    this.s.setMode('santa');
+    await vision().start({ camera: opts.camera, mic: false });
+
+    const live = new LiveSession({
+      system: livePrompt(frame, this.s.total),
+      voice: opts.voice,
+      mic: opts.mic,
+      tools: this.liveTools(g),
+      onCaption: (caption) => this.s.patch({ caption }),
+      onTurnComplete: () => this.onLiveTurn(g),
+      onClose: (why) => g === this.gen && this.s.patch({ error: `Gemini-Verbindung beendet (${why}). Taste E = Schluss, oder neu laden.` }),
+    });
+    this.live = live;
+    const connecting = live.start();
+
+    // Vorspann, während die Verbindung aufgebaut wird
+    this.s.patch({ letterbox: true });
+    setShot('wide', true);
+    music.start();
+    try {
+      await this.title(g, { title: frame?.title || "Santa's Naughty Book", sub: frame?.subtitle || frame?.event.name }, 5200);
+      await connecting;
+    } catch (e) {
+      if (e instanceof Aborted) return;
+      music.stop();
+      live.stop();
+      this.live = null;
+      this.s.patch({ error: `${e} – weiter ohne Live-Gespräch.`, live: false });
+      return this.start({ camera: opts.camera, mic: opts.mic });
+    }
+    music.stop();
+    this.s.patch({ letterbox: false, phase: 'waiting' });
+    setShot('medium');
+    live.say(HINT.begin);
+    this.unsubPresence?.();
+    this.unsubPresence = vision().onPresence((p) => {
+      if (p && this.live && !this.current && !this.live.speaking && this.closingFrom < 0) this.live.say(HINT.person);
+    });
+  }
+
+  private liveTools(g: number) {
+    const total = () => this.s.total;
+    return [
+      {
+        name: 'open_book',
+        description: 'Öffnet das goldene Buch mit dem Zauberwort der Person, die vor der Kamera steht. Liefert Name und Geschichte.',
+        parameters: {
+          type: 'OBJECT' as const,
+          properties: { magic_word: { type: 'STRING' as const, description: 'Das gehörte Zauberwort (zwei Wörter), genau so wie gesagt' } },
+          required: ['magic_word'],
+        },
+        run: async (args: Record<string, unknown>) => {
+          this.check(g);
+          const said = String(args.magic_word ?? '').trim();
+          this.s.patch({ phase: 'code', checking: true, heard: said });
+          const guest = said ? await unlock(codeCandidates([said])) : null;
+          this.s.patch({ checking: false });
+          if (!guest) return { ok: false };
+          if (this.doneIds.has(guest.id)) return { ok: false, already_read: true, name: guest.name };
+          this.current = guest;
+          const book = useBook.getState();
+          const gi = book.addGuest(guest);
+          book.setPage(gi + 2, 'right');
+          this.s.patch({ phase: 'reading', titleCard: { kicker: LINES.chapter(this.doneIds.size + 1), title: guest.name, sub: guest.title } });
+          setTimeout(() => this.s.patch({ titleCard: null }), 3400);
+          return { ok: true, name: guest.name, title: guest.title ?? '', story: guest.stories.join('\n\n'), remaining_after: total() - this.doneIds.size - 1 };
+        },
+      },
+      {
+        name: 'show_verdict',
+        description: 'Zeigt nach der Geschichte den Stempel mit dem Urteil im Buch. Liefert das Urteil.',
+        run: async () => {
+          this.check(g);
+          const guest = this.current;
+          if (!guest) return { error: 'Es ist gerade kein Buch offen.' };
+          this.s.patch({ phase: 'verdict' });
+          setShot('book', true);
+          await sleep(400);
+          const book = useBook.getState();
+          const gi = book.guests.findIndex((x) => x.id === guest.id);
+          if (book.startReveal(guest.id)) {
+            const t0 = performance.now();
+            while (performance.now() - t0 < 6000 && !useBook.getState().guests[gi]?.revealed) await sleep(80);
+            await sleep(1100);
+          }
+          setShot('close', true);
+          this.doneIds.add(guest.id);
+          this.current = null;
+          this.s.patch({ done: this.doneIds.size, phase: 'waiting' });
+          const label = { nice: 'brav', naughty: 'unartig', undecided: 'unentschieden' }[guest.verdict];
+          return { verdict: guest.verdict, label, remaining: total() - this.doneIds.size };
+        },
+      },
+      {
+        name: 'end_evening',
+        description: 'Beendet den Abend. Liefert Schlusswort und Abschied zum Vorlesen.',
+        run: async () => {
+          this.check(g);
+          const frame = this.s.frame;
+          this.closingFrom = this.live?.chunks ?? 0;
+          this.s.patch({ phase: 'closing', letterbox: true });
+          setShot('medium');
+          return {
+            closing: this.doneIds.size > 0 ? frame?.closing || '' : '',
+            farewell: frame?.farewell || LINES.farewell,
+          };
+        },
+      },
+    ];
+  }
+
+  /** Nach dem Schlusswort: Abspann und Buch */
+  private onLiveTurn(g: number) {
+    const live = this.live;
+    if (g !== this.gen || !live || this.closingFrom < 0 || live.chunks - this.closingFrom < 40) return;
+    void (async () => {
+      await sleep(1500);
+      if (g !== this.gen || live.speaking) return;
+      live.stop();
+      this.live = null;
+      setShot('wide');
+      music.start();
+      try {
+        await this.title(g, { title: LINES.endTitle, sub: this.s.frame?.event.name }, 7000);
+      } catch {
+        return;
+      }
+      music.stop();
+      this.unsubPresence?.();
+      vision().stop();
+      this.finale();
+    })();
   }
 
   private emit(e: Ev) {
