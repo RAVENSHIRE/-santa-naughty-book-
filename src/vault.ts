@@ -30,6 +30,10 @@ export function normalizeCode(s: string) {
 }
 
 let file: SealedFile | null = null;
+/** Schlüssel der geöffneten Einträge – auch für die verschlüsselten Aufnahmen */
+const keys = new Map<string, CryptoKey>();
+export const guestKey = (id: string) => keys.get(id) ?? null;
+export const forgetKeys = () => keys.clear();
 
 export async function loadEvent(): Promise<{ frame: Frame; count: number } | null> {
   try {
@@ -82,6 +86,7 @@ export async function unlock(candidates: string[]): Promise<Guest | null> {
     try {
       const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64(entry.iv) }, key, b64(entry.data));
       const d = JSON.parse(new TextDecoder().decode(plain)) as Record<string, unknown>;
+      keys.set(entry.id, key);
       return {
         id: entry.id,
         name: String(d.name ?? '').slice(0, 80),

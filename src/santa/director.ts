@@ -1,11 +1,12 @@
 import { music, sfx } from '../audio';
 import type { Guest } from '../model';
 import { useBook } from '../store';
-import { codeCandidates, unlock } from '../vault';
+import { codeCandidates, forgetKeys, guestKey, unlock } from '../vault';
 import { extractName, LINES, sentences } from './lines';
 import { gesture, santaRuntime, setShot } from './santaRuntime';
 import { useSanta } from './santaStore';
-import { listen, primeSpeech, speak, stopListening, stopSpeaking, sttSupported } from './speech';
+import { listen, primeSpeech, speak, stopListening, stopSpeaking, sttSupported, voiceAudio } from './speech';
+import { type Clip, clipFor, forgetGuestVoices, loadGuestVoice } from './voicebank';
 import { vision } from './vision';
 
 /**
@@ -79,6 +80,8 @@ class Director {
     this.unsubPresence?.();
     vision().stop();
     useBook.getState().wipe();
+    forgetGuestVoices();
+    forgetKeys();
     this.doneIds.clear();
     this.s.patch({ phase: 'idle', caption: '', heard: '', input: null, letterbox: false, titleCard: null, done: 0 });
     this.s.setMode('santa');
@@ -118,6 +121,10 @@ class Director {
 
   /** Spricht Satz für Satz mit Untertitel; Leertaste überspringt einen Satz */
   private async say(g: number, text: string) {
+    const clip = await clipFor(text);
+    this.check(g);
+    if (clip && (await this.playClip(g, clip))) return;
+    // Ersatz: lokale Stimme des Betriebssystems
     for (const sentence of sentences(text)) {
       this.check(g);
       this.s.patch({ caption: sentence });
@@ -130,6 +137,55 @@ class Director {
       if (r?.kind === 'end') break;
     }
     music.duck(false);
+  }
+
+  /** Spielt eine Aufnahme; Untertitel und Mund folgen den Satz-Zeiten. false = nicht abspielbar */
+  private async playClip(g: number, clip: Clip): Promise<boolean> {
+    const a = voiceAudio();
+    a.src = clip.url;
+    try {
+      await a.play();
+    } catch {
+      return false;
+    }
+    music.duck(true);
+    let finished = false;
+    const ended = new Promise<'ended'>((res) => {
+      a.onended = a.onerror = () => {
+        finished = true;
+        res('ended');
+      };
+    });
+    let raf = 0;
+    const tick = () => {
+      const t = a.currentTime;
+      const cur = clip.s.find(([, e]) => t <= e + 0.25);
+      if (cur && this.s.caption !== cur[2]) this.s.patch({ caption: cur[2] });
+      santaRuntime.speaking = !a.paused && !!cur && t >= cur[0] - 0.06 && t <= cur[1] + 0.06;
+      raf = requestAnimationFrame(tick);
+    };
+    tick();
+    try {
+      while (!finished) {
+        const w = this.wait(['skip', 'end'], 600_000);
+        const r = await Promise.race([ended, w.p]);
+        w.cancel();
+        this.check(g);
+        if (r === 'ended' || r?.kind === 'end') break;
+        if (r?.kind === 'skip') {
+          const next = clip.s.find(([s]) => s > a.currentTime + 0.05);
+          if (!next) break;
+          a.currentTime = Math.max(0, next[0] - 0.05);
+        }
+      }
+    } finally {
+      cancelAnimationFrame(raf);
+      a.onended = a.onerror = null;
+      a.pause();
+      santaRuntime.speaking = false;
+      music.duck(false);
+    }
+    return true;
   }
 
   private async title(g: number, card: { kicker?: string; title: string; sub?: string }, ms: number) {
@@ -227,6 +283,8 @@ class Director {
         santaRuntime.pose = 'think';
         this.s.patch({ checking: true });
         guest = await unlock(codeCandidates(said));
+        const key = guest && guestKey(guest.id);
+        if (guest && key) await loadGuestVoice(guest.id, key);
         this.s.patch({ checking: false });
         santaRuntime.pose = 'idle';
         this.check(g);

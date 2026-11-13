@@ -30,6 +30,8 @@ body,
 .avatar {
   position: fixed;
   inset: 0;
+  overflow: hidden;
+  background: #07090f;
   transition: opacity 0.45s ease;
 }
 
@@ -37,10 +39,58 @@ body,
   display: none;
 }
 
-.avatar canvas {
+.avatar[data-shot='book'],
+.avatar[data-shot='wide'] {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Ränder (andere Bildformate) mit einer unscharfen Kopie füllen */
+.avatar-bg {
+  position: absolute;
+  inset: -40px;
+  background-size: cover;
+  background-position: center;
+  filter: blur(28px) brightness(0.45);
+}
+
+/* Ganzes Bild sichtbar (contain), nur sanftes „Atmen“ der Kamera, Nahaufnahme minimal */
+.avatar-frame {
+  position: absolute;
+  inset: 0;
+  transform-origin: 52% 42%;
+  transition: transform 1.6s cubic-bezier(0.3, 0, 0.2, 1);
+  animation: breathe 5.2s ease-in-out infinite;
+}
+
+.avatar[data-shot='close'] .avatar-frame {
+  transform: scale(1.08);
+}
+
+.avatar-frame video,
+.avatar-frame img {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
-  display: block;
+  object-fit: contain;
+}
+
+.avatar-talk {
+  opacity: 0;
+  transition: opacity 0.16s linear;
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    translate: 0 0;
+    scale: 1;
+  }
+  50% {
+    translate: 0 -0.25%;
+    scale: 1.008;
+  }
 }
 
 .scene {

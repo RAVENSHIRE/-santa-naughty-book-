@@ -26,6 +26,8 @@ interface SessionState {
   /** Welche Eingabe die Oberfläche gerade anbietet */
   input: 'name' | 'code' | null;
   checking: boolean;
+  /** Vorab aufgenommene Stimme (public/voice) vorhanden */
+  recorded: boolean;
   camera: DeviceState;
   mic: DeviceState;
   detector: DeviceState;
@@ -49,6 +51,7 @@ export const useSanta = create<SessionState>()((set) => ({
   heard: '',
   input: null,
   checking: false,
+  recorded: false,
   camera: 'off',
   mic: 'off',
   detector: 'off',

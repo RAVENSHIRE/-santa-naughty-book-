@@ -9,6 +9,7 @@ import { Experience } from './three/Experience';
 import { LiveAvatar } from './ui/LiveAvatar';
 import { Loader } from './ui/Loader';
 import { Stage } from './ui/Stage';
+import { loadVoiceManifest } from './santa/voicebank';
 import { loadEvent } from './vault';
 
 // Nur im Dev-Server für automatische Tests
@@ -30,7 +31,11 @@ function useKeyboard() {
       if (el && (el.tagName === 'INPUT' || el.tagName === 'SELECT')) return;
       const { phase, mode } = useSanta.getState();
       const book = useBook.getState();
-      if (e.key === 'f' || e.key === 'F') void document.documentElement.requestFullscreen?.().catch(() => {});
+      if (e.key === 'f' || e.key === 'F') {
+        // Vollbild nur auf Wunsch (F schaltet ein und aus)
+        if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
+        else void document.documentElement.requestFullscreen?.().catch(() => {});
+      }
       else if (mode === 'book' && ['ArrowRight', 'PageDown', ' '].includes(e.key)) book.next();
       else if (mode === 'book' && ['ArrowLeft', 'PageUp'].includes(e.key)) book.prev();
       else if (phase !== 'idle' && phase !== 'finale' && e.key === ' ') director.skip();
@@ -39,18 +44,8 @@ function useKeyboard() {
       else return;
       e.preventDefault();
     };
-    // Immer Vollbild: Browser erlauben das nur nach einer Eingabe – also bei jeder Eingabe zurückholen
-    const keepFullscreen = () => {
-      if (!document.fullscreenElement && useSanta.getState().phase !== 'idle') void document.documentElement.requestFullscreen?.().catch(() => {});
-    };
     window.addEventListener('keydown', onKey);
-    window.addEventListener('pointerdown', keepFullscreen);
-    window.addEventListener('keydown', keepFullscreen);
-    return () => {
-      window.removeEventListener('keydown', onKey);
-      window.removeEventListener('pointerdown', keepFullscreen);
-      window.removeEventListener('keydown', keepFullscreen);
-    };
+    return () => window.removeEventListener('keydown', onKey);
   }, []);
 }
 
@@ -60,6 +55,7 @@ export default function App() {
 
   useEffect(() => {
     void loadEvent().then((r) => useSanta.getState().patch({ frame: r?.frame ?? null, total: r?.count ?? 0 }));
+    void loadVoiceManifest().then((recorded) => useSanta.getState().patch({ recorded }));
     const onResize = () => useBook.getState().setSinglePage(window.innerWidth / window.innerHeight < 0.8);
     onResize();
     window.addEventListener('resize', onResize);

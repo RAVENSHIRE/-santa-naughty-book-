@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { director } from '../santa/director';
 import { useSanta } from '../santa/santaStore';
-import { localVoices, primeSpeech, saveVoiceName, savedVoiceName, speak, sttSupported } from '../santa/speech';
+import { LINES } from '../santa/lines';
+import { localVoices, primeSpeech, saveVoiceName, savedVoiceName, speak, sttSupported, voiceAudio } from '../santa/speech';
+import { clipFor } from '../santa/voicebank';
 import { useBook } from '../store';
 
 function TitleCard() {
@@ -85,6 +87,15 @@ function StartPanel() {
     });
   }, [voice]);
   const ready = useBook((s) => s.ready);
+  const recorded = useSanta((s) => s.recorded);
+  const probe = async () => {
+    primeSpeech();
+    const clip = await clipFor(LINES.askName);
+    if (!clip) return;
+    const a = voiceAudio();
+    a.src = clip.url;
+    void a.play().catch(() => {});
+  };
   return (
     <div className="start">
       <h1>{frame?.title || "Santa's Naughty Book"}</h1>
@@ -99,7 +110,14 @@ function StartPanel() {
           <input type="checkbox" checked={mic} disabled={!sttSupported()} onChange={(e) => setMic(e.target.checked)} /> Mikrofon
         </label>
       </div>
-      {voices.length ? (
+      {recorded ? (
+        <div className="row">
+          <span>Stimme: Mrs. Claus (aufgenommen)</span>
+          <button type="button" className="ghost" onClick={() => void probe()}>
+            Probe
+          </button>
+        </div>
+      ) : voices.length ? (
         <div className="row">
           <select
             value={voice}
@@ -135,16 +153,14 @@ function StartPanel() {
       <button
         className="go"
         disabled={!frame || !ready}
-        onClick={() => {
-          void document.documentElement.requestFullscreen?.().catch(() => {});
-          void director.start({ camera, mic });
-        }}
+        onClick={() => void director.start({ camera, mic })}
       >
         Mrs. Claus starten
       </button>
       <p className="note">
-        Nichts wird gespeichert oder hochgeladen: Die Stimme ist lokal, die Kamera wird nur im Browser ausgewertet. Die
-        Spracherkennung des Browsers kann Audio an Google/Microsoft senden – ohne Mikrofon wird getippt.
+        Nichts wird gespeichert oder hochgeladen: Die Stimme ist vorab aufgenommen und pro Person verschlüsselt, die Kamera
+        wird nur im Browser ausgewertet. Die Spracherkennung des Browsers kann Audio an Google/Microsoft senden – ohne
+        Mikrofon wird getippt. Taste F: Vollbild.
       </p>
     </div>
   );

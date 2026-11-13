@@ -92,11 +92,44 @@ export async function speak(sentence: string): Promise<void> {
 export function stopSpeaking() {
   token++;
   santaRuntime.speaking = false;
+  audioEl?.pause();
   if (ttsSupported()) speechSynthesis.cancel();
+}
+
+// ---------- Aufnahmen (ElevenLabs, vorab) ----------
+
+let audioEl: HTMLAudioElement | null = null;
+/** Ein Audio-Element für alle Aufnahmen – im Start-Klick freigeschaltet */
+export function voiceAudio() {
+  audioEl ??= Object.assign(new Audio(), { preload: 'auto' });
+  return audioEl;
+}
+
+/** 0,1 s Stille als WAV – schaltet die Wiedergabe im Klick frei (Safari/iOS) */
+function silence() {
+  const n = 4410;
+  const b = new DataView(new ArrayBuffer(44 + n * 2));
+  const w = (o: number, t: string) => [...t].forEach((c, i) => b.setUint8(o + i, c.charCodeAt(0)));
+  w(0, 'RIFF');
+  b.setUint32(4, 36 + n * 2, true);
+  w(8, 'WAVEfmt ');
+  b.setUint32(16, 16, true);
+  b.setUint16(20, 1, true);
+  b.setUint16(22, 1, true);
+  b.setUint32(24, 44100, true);
+  b.setUint32(28, 88200, true);
+  b.setUint16(32, 2, true);
+  b.setUint16(34, 16, true);
+  w(36, 'data');
+  b.setUint32(40, n * 2, true);
+  return URL.createObjectURL(new Blob([b.buffer], { type: 'audio/wav' }));
 }
 
 /** Muss in einem Klick passieren, sonst blockiert der Browser die Ausgabe */
 export function primeSpeech() {
+  const a = voiceAudio();
+  a.src = silence();
+  void a.play().catch(() => {});
   if (!ttsSupported()) return;
   void localVoices();
   const u = new SpeechSynthesisUtterance(' ');
