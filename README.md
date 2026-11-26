@@ -24,6 +24,13 @@ Chrome oder Edge, Mikrofon erlauben, Taste **F** für Vollbild.
 | Esc | zurück zur Schneekugel |
 | H | Hilfe ein/aus |
 
+## Auf dem Handy testen
+
+Die Einzeldatei `demo/samichlaus-hotline.html` enthält die ganze App (Bilder, Filme und Stimme kommen von Higgsfield):
+https://raw.githack.com/RAVENSHIRE/-santa-naughty-book-/main/demo/samichlaus-hotline.html
+
+Am besten im Querformat, Mikrofon erlauben. Neu bauen mit `npm run build:single`.
+
 ## Entwickeln
 
 ```bash

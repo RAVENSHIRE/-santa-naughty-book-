@@ -9,6 +9,8 @@
 }
 
 * { box-sizing: border-box; }
+/* «hidden» muss immer gewinnen, auch gegen display: flex */
+[hidden] { display: none !important; }
 html, body { margin: 0; height: 100%; overflow: hidden; background: #05080f; color: var(--cream); font-family: var(--sans); }
 button { font: inherit; color: inherit; cursor: pointer; }
 
@@ -103,6 +105,8 @@ body[data-scene='room'] #talkVideo:not(.on) { opacity: 0; }
   pointer-events: none;
 }
 @keyframes pulse { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+/* Hinweis nur auf dem Startbild (die Animation würde sonst das Ausblenden übersteuern) */
+body:not([data-scene='desk']) .hint { animation: none; visibility: hidden; }
 .ghost {
   position: absolute;
   right: 3vw;
