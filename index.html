@@ -1,15 +1,60 @@
 <!doctype html>
-<html lang="de">
+<html lang="de" translate="no">
   <head>
     <meta charset="UTF-8" />
+    <meta name="google" content="notranslate" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#140806" />
-    <meta name="description" content="Santa's Naughty Book – ein live 3D-Buch für Weihnachtsevents: Wer war brav, wer war unartig?" />
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='10' y='6' width='44' height='52' rx='4' fill='%237a0c12'/%3E%3Crect x='10' y='6' width='8' height='52' fill='%23f4efe6'/%3E%3Cpath d='M36 20l3 7 7 .5-5.5 4.5 2 7-6.5-4-6.5 4 2-7-5.5-4.5 7-.5z' fill='%23d8b25a'/%3E%3C/svg%3E" />
-    <title>Santa's Naughty Book</title>
+    <meta name="theme-color" content="#0a1220" />
+    <title>Samichlaus-Hotline</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='28' r='22' fill='%23cfe6f5' fill-opacity='.5' stroke='%23fff' stroke-width='3'/%3E%3Crect x='14' y='48' width='36' height='10' rx='3' fill='%237a4b30'/%3E%3Ccircle cx='32' cy='30' r='7' fill='%23c8161f'/%3E%3C/svg%3E" />
   </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+  <body data-scene="desk">
+    <!-- Bühne im 16:9-Format, füllt das Fenster (wie object-fit: cover) -->
+    <div id="stage">
+      <img id="deskImg" class="layer desk-only" alt="" />
+      <canvas id="deskSnow" class="layer desk-only"></canvas>
+      <button id="globe" class="desk-only" aria-label="Schneekugel schütteln">
+        <span class="globe-img"></span>
+        <canvas id="globeSnow"></canvas>
+        <span class="globe-shine"></span>
+      </button>
+      <video id="introVideo" class="layer intro-only" playsinline preload="auto"></video>
+      <video id="idleVideo" class="layer room-only" muted loop playsinline preload="auto"></video>
+      <video id="talkVideo" class="layer room-only" muted loop playsinline preload="auto"></video>
+    </div>
+
+    <!-- Bedienoberfläche, immer im sichtbaren Bereich -->
+    <div id="ui">
+      <p id="deskHint" class="hint desk-only">Tippe auf die Schneekugel</p>
+      <button id="skipIntro" class="ghost intro-only">Überspringen ›</button>
+
+      <div id="caption" class="caption room-only"></div>
+
+      <div id="callBar" class="call-bar room-only">
+        <button id="callBtn" class="call-btn"><span class="phone-ico">📞</span> Samichlaus anrufen</button>
+      </div>
+
+      <div id="phone" class="phone-ui room-only" hidden>
+        <div class="phone-top">
+          <span class="live-dot"></span>
+          <span id="phoneState">Samichlaus · Nordpol-HQ</span>
+          <span id="phoneTimer">00:00</span>
+          <button id="hangupBtn" class="hangup" aria-label="Auflegen">Auflegen</button>
+        </div>
+        <div id="listen" class="listen" hidden>
+          <span class="mic">🎙️</span>
+          <span id="listenText">Sag deinen Namen …</span>
+        </div>
+        <div id="names" class="names" hidden></div>
+      </div>
+
+      <div id="help" class="help" hidden>
+        <b>Gastgeber-Tasten</b><br />
+        1–8 Geschichte direkt · S Schlusswort · Leertaste Pause · Esc zurück zur Kugel · F Vollbild · H Hilfe
+      </div>
+      <div id="fade" class="fade"></div>
+      <div id="loading" class="loading">Der Samichlaus putzt seine Brille …</div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

@@ -1,5 +1,7 @@
 node_modules
 dist
-dist-single
 *.log
 .DS_Store
+*.tsbuildinfo
+# Arbeitsdateien, Manuskript, Job-Listen – nie committen
+private/
